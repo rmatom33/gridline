@@ -39,7 +39,7 @@ p { margin: 0; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-.app { max-width: 560px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); }
+.app { max-width: 560px; margin: 0 auto; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
 main.page { display: flex; flex-direction: column; gap: 16px; padding: 16px 16px 28px; }
 main.page.tight { gap: 14px; }
 
@@ -239,8 +239,10 @@ mark { background: none; color: var(--accent); font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
 
 /* ---------- Bottom nav ---------- */
-.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: #0D1117; border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
-.nav-inner { max-width: 560px; margin: 0 auto; height: var(--nav-h); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 6px 4px 18px; }
+/* Sticky (not fixed): it stays in the page flow as the last element, so iOS
+   Safari can't leave it floating mid-screen when its toolbar shrinks or grows. */
+.nav { position: -webkit-sticky; position: sticky; bottom: 0; margin-top: auto; z-index: 10; background: #0D1117; border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+.nav-inner { max-width: 560px; margin: 0 auto; height: 64px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 4px 4px; }
 .nav a { height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--muted); }
 .nav a[aria-current='page'] { color: var(--accent); }
 
