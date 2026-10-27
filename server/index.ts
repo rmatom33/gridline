@@ -1,5 +1,5 @@
 // Gridline Node server: the API (server/api.ts) plus the built site from ./dist.
-// Used locally and on Render. On Vercel, server/vercel.ts is used instead.
+// Used locally and on Render. On Vercel, server/handler.ts is used instead.
 //   GET /api/scoreboard?week=8
 //   GET /api/game/:id
 //   GET /api/schedule?week=9

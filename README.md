@@ -46,7 +46,7 @@ Vercel builds the site in the cloud, so you don't need Node.js or anything else 
 
 If you add or change an environment variable later, go to **Deployments → ⋯ → Redeploy** so it takes effect. To change code, upload the changed files to GitHub and Vercel redeploys automatically. Custom domain: **Project → Settings → Domains**.
 
-**How it runs on Vercel:** the site is served from Vercel's CDN, and `/api/*` runs as one serverless function (`server/vercel.ts`, bundled by `scripts/build-vercel.mjs`). API responses carry `s-maxage` headers, so Vercel's CDN answers repeat requests and SportsDataIO is called at most once every few seconds per endpoint, however many people are watching. Vercel's free Hobby plan is for personal, non-commercial use; a commercial launch needs Pro.
+**How it runs on Vercel:** the site is served from Vercel's CDN, and `/api/*` runs as one serverless function (`server/handler.ts`, bundled by `scripts/build-vercel.mjs`). API responses carry `s-maxage` headers, so Vercel's CDN answers repeat requests and SportsDataIO is called at most once every few seconds per endpoint, however many people are watching. Vercel's free Hobby plan is for personal, non-commercial use; a commercial launch needs Pro.
 
 **Prefer Render?** The same code runs there unchanged: Web Service, build `npm install && npm run build`, start `npm start`, same environment variables.
 
@@ -101,7 +101,7 @@ src/
 server/
   api.ts          the JSON API, /api/health
   index.ts        Node server (local, Render): API + built site
-  vercel.ts       Vercel function entry
+  handler.ts      Vercel function entry
 scripts/
   build-vercel.mjs  builds .vercel/output (static site + function)
   providers/      sportsdataio.ts, theoddsapi.ts

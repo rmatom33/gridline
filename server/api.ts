@@ -1,5 +1,5 @@
 // The Gridline JSON API, shared by the Node server (server/index.ts, used
-// locally and on Render) and the Vercel function (server/vercel.ts).
+// locally and on Render) and the Vercel function (server/handler.ts).
 //   GET /api/scoreboard?week=8
 //   GET /api/game/:id
 //   GET /api/schedule?week=9
