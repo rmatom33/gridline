@@ -14,7 +14,7 @@ await mkdir(`${out}/functions/api.func`, { recursive: true });
 await cp('dist', `${out}/static`, { recursive: true });
 
 await build({
-  entryPoints: ['server/vercel.ts'],
+  entryPoints: ['server/handler.ts'],
   outfile: `${out}/functions/api.func/index.mjs`,
   bundle: true,
   platform: 'node',
