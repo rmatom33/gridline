@@ -4,7 +4,7 @@ import { data } from '../data/source';
 import { cached, useOnline, usePoll } from '../data/usePoll';
 import { href } from '../data/router';
 import { TEAMS } from '../shared/teams';
-import { record, streakText } from '../shared/format';
+import { record } from '../shared/format';
 import { winPct } from '../shared/teamdetail';
 import { Badge, ErrorCard, Footer, FormDots, Nav, OfflineBanner, SampleBadge, Skeleton, teamName, WeekChip } from '../ui/parts';
 
@@ -91,7 +91,7 @@ function Table({ title, teams, sub, startPos = 1 }: { title: string; teams: Stan
             <span className="strow-top">
               <span className="pos">{sub ? s.seed ?? startPos + i : startPos + i}</span>
               <Badge abbr={s.team} size={38} />
-              <span className="nm"><b>{teamName(s.team)}</b><span>{streakText(s.streak)}{s.seed ? ` · playoff place ${s.seed}` : ''}</span></span>
+              <span className="nm"><b>{teamName(s.team)}</b>{s.seed ? <span className="seedtx">Playoff seed {s.seed}</span> : null}</span>
               <span className="wl"><small>W–L</small><b>{record(s.w, s.l, s.t).replace(/-/g, '–')}</b></span>
             </span>
             <span className="stline">

@@ -514,3 +514,4 @@ mark { background: none; color: var(--accent-text); font-weight: 800; }
 .strow .stline .c { align-items: center; gap: 2px; }
 .strow .stline b { font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .strow .stline .form i { width: 12px; height: 12px; }
+.strow .nm .seedtx { margin-top: 2px; font-size: 13px; font-weight: 800; color: var(--accent-text); white-space: nowrap; }
