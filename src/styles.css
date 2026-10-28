@@ -484,7 +484,7 @@ mark { background: none; color: var(--accent-text); font-weight: 800; }
 .ngkick .ko small { font-size: 12px; font-weight: 800; letter-spacing: 1.2px; opacity: .9; }
 .ngkick .ko b { font-size: 26px; font-weight: 800; line-height: 1.05; }
 .ngkick .ko span { font-size: 13px; font-weight: 700; }
-.strow { padding: 12px 20px; display: flex; align-items: center; gap: 12px; color: var(--text); border-top: 1px solid var(--line); }
+.strow { padding: 14px 20px; display: flex; flex-direction: column; gap: 10px; color: var(--text); border-top: 1px solid var(--line); }
 .strow.lead { background: #FDF6F1; }
 .strow .pos { width: 22px; font-size: 15px; font-weight: 700; color: var(--muted); flex: none; }
 .strow .nm { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -504,3 +504,13 @@ mark { background: none; color: var(--accent-text); font-weight: 800; }
 .playfil .teams2 button { height: 46px; border: 2px solid #4A4570; border-radius: 23px; background: transparent; color: #E4E0F2; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 16px; font-weight: 800; white-space: nowrap; }
 .playfil .teams2 button[aria-pressed='true'] { border-color: #FFFFFF; background: #FFFFFF; color: var(--text); }
 .top .btn.tint { white-space: nowrap; flex: none; }
+.strow-top { display: flex; align-items: center; gap: 12px; }
+.strow .wl small, .strow .stline small { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #6B6880; }
+.strow .wl { line-height: 1.1; }
+.strow .wl b { font-size: 21px; }
+.strow .stline { margin-left: 34px; padding: 8px 12px; border-radius: 14px; background: #F7F4F8; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); align-items: center; }
+.strow .stline > span { display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #E4DEE8; }
+.strow .stline > span:last-child { border-right: 0; }
+.strow .stline .c { align-items: center; gap: 2px; }
+.strow .stline b { font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.strow .stline .form i { width: 12px; height: 12px; }
