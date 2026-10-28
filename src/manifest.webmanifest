@@ -1,9 +1,0 @@
-{
-  "name": "Gridline",
-  "short_name": "Gridline",
-  "start_url": "./",
-  "display": "standalone",
-  "background_color": "#F4F0F3",
-  "theme_color": "#1D1A39",
-  "icons": [{ "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml" }]
-}

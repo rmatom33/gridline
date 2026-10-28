@@ -68,6 +68,7 @@ export function StandingsPage({ conf: initial }: { conf?: 'AFC' | 'NFC' }) {
             <span><span className="form"><i className="w" /></span>Win</span>
             <span><span className="form"><i className="l" /></span>Loss</span>
             <span>Last 5 games, oldest first</span>
+            <span style={{ flexBasis: '100%' }}>PF = points scored · PA = points allowed</span>
           </div>
           <p className="footer-note fine">Seeds use a simplified tiebreak (record, then point differential), so they can differ from the official NFL order in close races.</p>
           <Footer odds={false} />
@@ -81,16 +82,23 @@ export function StandingsPage({ conf: initial }: { conf?: 'AFC' | 'NFC' }) {
 function Table({ title, teams, sub, startPos = 1 }: { title: string; teams: Standing[]; sub?: [string, number, string]; startPos?: number }) {
   return (
     <section className="card" aria-label={title}>
-      <div className="st-card-head"><span className="card-title">{title}</span><span>Wins–losses</span></div>
+      <div className="st-card-head"><span className="card-title">{title}</span><span>{teams.length} teams</span></div>
       {teams.map((s, i) => (
         <div key={s.team}>
           {sub && i === 0 && <div className="sub-head">{sub[0]}</div>}
           {sub && i === sub[1] && <div className="sub-head">{sub[2]}</div>}
-          <a className={`strow ${i === 0 && !sub ? 'lead' : ''}`} href={href.team(s.team)} aria-label={`${teamName(s.team, true)}, ${record(s.w, s.l, s.t)}${s.seed ? `, playoff place ${s.seed}` : ''}`}>
-            <span className="pos">{sub ? s.seed ?? startPos + i : startPos + i}</span>
-            <Badge abbr={s.team} size={38} />
-            <span className="nm"><b>{teamName(s.team)}</b><span>{streakText(s.streak)}{s.seed ? ` · playoff place ${s.seed}` : ''}</span></span>
-            <span className="wl"><b>{record(s.w, s.l, s.t).replace(/-/g, '–')}</b><FormDots s={s} /></span>
+          <a className={`strow ${i === 0 && !sub ? 'lead' : ''}`} href={href.team(s.team)} aria-label={`${teamName(s.team, true)}, ${record(s.w, s.l, s.t)}, ${s.pf} points scored, ${s.pa} allowed${s.seed ? `, playoff place ${s.seed}` : ''}`}>
+            <span className="strow-top">
+              <span className="pos">{sub ? s.seed ?? startPos + i : startPos + i}</span>
+              <Badge abbr={s.team} size={38} />
+              <span className="nm"><b>{teamName(s.team)}</b><span>{streakText(s.streak)}{s.seed ? ` · playoff place ${s.seed}` : ''}</span></span>
+              <span className="wl"><small>W–L</small><b>{record(s.w, s.l, s.t).replace(/-/g, '–')}</b></span>
+            </span>
+            <span className="stline">
+              <span><small>LAST 5</small><FormDots s={s} /></span>
+              <span className="c"><small>PF</small><b>{s.pf}</b></span>
+              <span className="c"><small>PA</small><b>{s.pa}</b></span>
+            </span>
           </a>
         </div>
       ))}
