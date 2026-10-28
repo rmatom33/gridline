@@ -73,7 +73,7 @@ export function GamesPage() {
                 <a href={href.game(next.id)} style={{ width: '100%', background: 'var(--panel2)', borderRadius: 14, padding: 14, display: 'flex', flexDirection: 'column', gap: 12, color: 'var(--text)' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
                     <Badge abbr={next.away.abbr} size={30} />
-                    <span style={{ fontWeight: 600 }}>{teamName(next.away.abbr)} at {teamName(next.home.abbr)}</span>
+                    <span style={{ fontWeight: 700, fontSize: 18, whiteSpace: 'nowrap' }}>{teamName(next.away.abbr)} at {teamName(next.home.abbr)}</span>
                     <Badge abbr={next.home.abbr} size={30} />
                   </span>
                   <Countdown iso={next.kickoff} now={now} />
@@ -124,15 +124,22 @@ function useNextKickoff(thisWeek: Game | undefined, week: number | undefined): G
 
 export function Countdown({ iso, now }: { iso: string; now: number }) {
   const c = countdown(iso, now);
-  const label = c.days > 0 ? `Kickoff in ${c.days} days ${c.hours} hours` : `Kickoff in ${c.hours} hours ${c.mins} minutes`;
-  const cells = c.days > 0
-    ? [[String(c.days), c.days === 1 ? 'day' : 'days'], [String(c.hours).padStart(2, '0'), 'hours']]
-    : [[String(c.hours).padStart(2, '0'), 'hours'], [String(c.mins).padStart(2, '0'), 'min']];
-  const day = new Date(iso).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' });
+  const cells: [string, string][] = c.days > 0
+    ? [[String(c.days), c.days === 1 ? 'day' : 'days'], [String(c.hours), c.hours === 1 ? 'hour' : 'hours']]
+    : [[String(c.hours), c.hours === 1 ? 'hour' : 'hours'], [String(c.mins).padStart(2, '0'), 'minutes']];
+  const t = clockTime(iso);
+  const day = new Date(iso).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/New_York' }).toUpperCase();
   return (
-    <div className="countdown" role="timer" aria-label={label}>
-      {cells.map(([v, k]) => <div key={k}><div className="v">{v}</div><div className="k">{k}</div></div>)}
-      <div><div className="v">{clockTime(iso).replace(/ [AP]M$/, '')}</div><div className="k">{clockTime(iso).slice(-2)} ET{c.days > 0 ? ` ${day}` : ' kickoff'}</div></div>
+    <div className="ngkick" role="timer" aria-label={`Kickoff in ${cells.map(([v, k]) => `${v} ${k}`).join(' ')}, ${day} at ${t}`}>
+      <div className="cd">
+        <span className="cap">KICKOFF IN</span>
+        <span className="nums">
+          <span className="n"><b>{cells[0][0]}</b><span>{cells[0][1]}</span></span>
+          <span className="colon" aria-hidden="true">:</span>
+          <span className="n"><b>{cells[1][0]}</b><span>{cells[1][1]}</span></span>
+        </span>
+      </div>
+      <div className="ko"><small>{day}</small><b>{t.replace(/ [AP]M$/, '')}</b><span>{t.slice(-2)} ET</span></div>
     </div>
   );
 }

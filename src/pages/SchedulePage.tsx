@@ -61,11 +61,11 @@ export function SchedulePage() {
       <header className="top" style={{ paddingBottom: 22 }}>
         <OfflineBanner online={online} stale={q.stale} updatedAt={q.updatedAt} retry={q.refresh} />
         <CenterBar fallback={href.games} backLabel="Back to all games">
-          <span className="ttl" style={{ fontSize: 26, whiteSpace: 'nowrap' }}>Upcoming games</span>
+          <span className="lbl-only">SCHEDULE</span>
         </CenterBar>
+        <h1 className="page-h1">Upcoming games</h1>
         {weeks.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
-            <span className="pickweek">PICK A WEEK</span>
             <div className="tickets-wrap">
               <div className="tickets" role="tablist" aria-label="Choose a week">
                 {weeks.map((n) => (

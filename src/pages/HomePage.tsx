@@ -20,10 +20,11 @@ export function pickSpotlight(games: Game[]): Game | undefined {
 
 const longDay = (ms: number) => new Date(ms).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'America/New_York' });
 
-const MEDAL = {
-  live: <svg aria-hidden="true" width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="12" rx="9.6" ry="5.6" transform="rotate(-35 12 12)" /><path d="M9.3 14.7l5.4-5.4M10.2 11.4l2.4 2.4M11.8 9.8l2.4 2.4M8.6 13l2.4 2.4" /></svg>,
-  later: <svg aria-hidden="true" width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="9" rx="4.2" ry="6.4" /><path d="M12 4.8v8.4M10.5 7.2h3M10.5 9.4h3M10.5 11.6h3" /><path d="M9.4 15.6h5.2l1.8 5.4H7.6z" /></svg>,
-  done: <svg aria-hidden="true" width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21v-8.5M6 12.5h12M6 12.5V3M18 12.5V3" /><path d="M9 21h6" /></svg>
+
+const CHIP_ICONS = {
+  live: <svg aria-hidden="true" width="22" height="22" viewBox="0 0 32 32"><g transform="rotate(-35 16 16)"><ellipse cx="16" cy="16" rx="13" ry="7.8" fill="#8B4513" stroke="#4A230A" strokeWidth="1.6" /><path d="M6 12.5q10-3.5 20 0M6 19.5q10 3.5 20 0" fill="none" stroke="#FFFFFF" strokeWidth="1.5" strokeLinecap="round" /><path d="M11.5 16h9" stroke="#FFFFFF" strokeWidth="1.6" strokeLinecap="round" /><path d="M13.5 14.2v3.6M16 14.2v3.6M18.5 14.2v3.6" stroke="#FFFFFF" strokeWidth="1.3" strokeLinecap="round" /></g></svg>,
+  later: <svg aria-hidden="true" width="22" height="22" viewBox="0 0 32 32"><circle cx="16" cy="17" r="12" fill="#2E2A52" stroke="#1D1A39" strokeWidth="1.6" /><circle cx="16" cy="17" r="9.5" fill="#FFFFFF" /><path d="M16 10.5V17l4.5 2.8" fill="none" stroke="#C2410C" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /><circle cx="16" cy="17" r="1.6" fill="#1D1A39" /><path d="M12 3.5h8" stroke="#2E2A52" strokeWidth="2.6" strokeLinecap="round" /><path d="M16 3.5v2" stroke="#2E2A52" strokeWidth="2.6" /></svg>,
+  done: <svg aria-hidden="true" width="22" height="22" viewBox="0 0 32 32"><path d="M16 30V18M7 18h18M7 18V3M25 18V3" fill="none" stroke="#FACC15" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" /><path d="M11 30h10" stroke="#B45309" strokeWidth="3" strokeLinecap="round" /><g transform="rotate(-30 16 9)"><ellipse cx="16" cy="9" rx="4.6" ry="2.9" fill="#8B4513" stroke="#4A230A" strokeWidth="1.1" /><path d="M14 9h4" stroke="#FFFFFF" strokeWidth="1" strokeLinecap="round" /></g></svg>
 };
 
 export function HomePage() {
@@ -48,10 +49,7 @@ export function HomePage() {
         <OfflineBanner online={online} stale={q.stale} updatedAt={q.updatedAt} retry={q.refresh} />
         <div className="top-row">
           <div className="brand"><b>Gridline</b></div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <SampleBadge />
-            <a className="icon-btn" href={href.search} aria-label="Search for a team or game"><Icon name="search" size={24} /></a>
-          </div>
+          <SampleBadge />
         </div>
         <div className="hero">
           <WeekChip left={sb ? `WEEK ${sb.week}` : 'TODAY'} right={longDay(now)} size="lg" />
@@ -61,19 +59,18 @@ export function HomePage() {
         <a className="search-pill" href={href.search}>Find a team or game <Icon name="search" size={24} /></a>
       </header>
 
-      {sb && (
-        <nav className="medals" aria-label="Show games">
-          <a href={href.games} className={live.length ? 'on' : ''} aria-label={`Live now: ${live.length} games`}><span className="disc">{MEDAL.live}<span className="count">{live.length}</span></span><b>Live now</b></a>
-          <a href={href.games} aria-label={`Kickoff later: ${upcoming.length} games`}><span className="disc">{MEDAL.later}<span className="count">{upcoming.length}</span></span><b>Kickoff later</b></a>
-          <a href={href.games} aria-label={`Final scores: ${finals.length} games`}><span className="disc">{MEDAL.done}<span className="count">{finals.length}</span></span><b>Final scores</b></a>
-        </nav>
-      )}
 
       {!sb && q.error && <main className="page"><ErrorCard error={q.error} retry={q.refresh} /></main>}
       {!sb && !q.error && <Skeleton />}
 
       {sb && (
         <main className="page">
+          <nav className="chips3" aria-label="Show games">
+            <a href={href.games} className={live.length ? 'on' : ''} aria-label={`Live: ${live.length} games`}>{CHIP_ICONS.live}<b>{live.length}</b><span>Live</span></a>
+            <a href={href.games} aria-label={`Later: ${upcoming.length} games`}>{CHIP_ICONS.later}<b>{upcoming.length}</b><span>Later</span></a>
+            <a href={href.games} aria-label={`Final: ${finals.length} games`}>{CHIP_ICONS.done}<b>{finals.length}</b><span>Final</span></a>
+          </nav>
+
           {spot && <Spotlight g={spot} hideNumbers={q.stale || !online} />}
 
           {live.length > (spot ? 1 : 0) && (

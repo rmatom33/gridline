@@ -30,7 +30,6 @@ export function PlaysPage({ id }: { id: string }) {
   const quarters = [...new Set(shown.map((d) => Math.min(d.quarter, 5)))].sort((a, b) => b - a);
   const latestQ = quarters[0];
 
-  const filters: [Filter, string][] = g ? [['all', 'All plays'], ['scoring', 'Scores'], ['turnovers', 'Turnovers'], ['away', g.away.abbr], ['home', g.home.abbr]] : [];
 
   return (
     <div className="app">
@@ -41,10 +40,21 @@ export function PlaysPage({ id }: { id: string }) {
           {g && <span style={{ marginTop: 8, fontSize: 18, fontWeight: 800, whiteSpace: 'nowrap' }}>{teamName(g.away.abbr)} {g.away.score ?? 0} · {teamName(g.home.abbr)} {g.home.score ?? 0}</span>}
           {g && <span className="gpill" style={{ marginTop: 8, background: 'var(--navy2)', color: '#E4E0F2' }}>{(g.status === 'live' || g.status === 'halftime') && <span className="dot" style={{ background: '#F97316' }} />}{liveStatus(g)}</span>}
         </CenterBar>
-        <div style={{ height: 14 }} />
+        <div style={{ height: 16 }} />
         {g && (
-          <div className="pills" role="group" aria-label="Filter plays">
-            {filters.map(([k, label]) => <button key={k} aria-pressed={filter === k} onClick={() => setFilter(k)}>{label}</button>)}
+          <div className="playfil" role="group" aria-label="Filter plays">
+            <div className="seg3">
+              {([['all', 'All plays'], ['scoring', 'Scores'], ['turnovers', 'Turnovers']] as [Filter, string][]).map(([k, label]) => (
+                <button key={k} aria-pressed={filter === k} onClick={() => setFilter(k)}>{label}</button>
+              ))}
+            </div>
+            <div className="teams2">
+              {(['away', 'home'] as const).map((side) => (
+                <button key={side} aria-pressed={filter === side} onClick={() => setFilter(filter === side ? 'all' : side)}>
+                  <Badge abbr={g[side].abbr} size={26} />{teamName(g[side].abbr)} only
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

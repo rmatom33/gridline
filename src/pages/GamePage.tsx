@@ -312,7 +312,6 @@ export function PlayRow({ p, delta }: { p: Play; delta?: number }) {
 
 function Pregame({ g, standings, stale }: { g: GameDetail; standings: Standing[] | null; stale: boolean }) {
   const [tab, setTab] = useState<'away' | 'home'>('away');
-  const hp = g.pregameHomeWinProb ?? g.homeWinProb ?? 0.5;
   const o = g.odds;
   const fav = o?.spread != null ? (o.spread <= 0 ? 'home' : 'away') : null;
   const dog = fav === 'home' ? 'away' : 'home';
@@ -323,15 +322,6 @@ function Pregame({ g, standings, stale }: { g: GameDetail; standings: Standing[]
       {g.status === 'postponed' && <div className="alert"><b>Postponed</b><span className="sub">A new kickoff time hasn't been announced yet.</span></div>}
       <p className="sub" style={{ textAlign: 'center' }}>{shortDay(g.kickoff)} · {kickoffTime(g.kickoff)}{venue ? ` · ${venue}` : ''}</p>
 
-      {!stale && (
-        <PadCard title="Who's expected to win">
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 700 }}>
-            <span>{g.away.abbr} {Math.round((1 - hp) * 100)}%</span><span>{g.home.abbr} {Math.round(hp * 100)}%</span>
-          </div>
-          <WPBar homeProb={hp} g={g} />
-          <span className="sub">Based on the betting line. This updates after every play once the game starts.</span>
-        </PadCard>
-      )}
 
       {!stale && o && (o.spread != null || o.total != null) && (
         <section className="card pad" aria-label="The betting line">
@@ -408,10 +398,10 @@ function Live({ g, standings, stale }: { g: GameDetail; standings: Standing[] | 
           </div>
           <Field g={g} />
           {s?.drivePlays != null && (
-            <div className="grid3" style={{ textAlign: 'center' }}>
-              <div className="stat-box"><div className="v">{s.drivePlays}</div><div className="k">Plays</div></div>
-              <div className="stat-box"><div className="v">{s.driveYards ?? 0}</div><div className="k">Yards</div></div>
-              <div className="stat-box"><div className="v">{s.driveTime ?? '–'}</div><div className="k">Drive time</div></div>
+            <div className="drivestats" aria-label={`This drive: ${s.drivePlays} plays, ${s.driveYards ?? 0} yards, ${s.driveTime ?? ''}`}>
+              <div><b>{s.drivePlays}</b><span>plays</span></div>
+              <div><b>{s.driveYards ?? 0}</b><span>yards</span></div>
+              <div><b>{s.driveTime ?? '–'}</b><span>drive time</span></div>
             </div>
           )}
         </PadCard>

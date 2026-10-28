@@ -151,7 +151,7 @@ export function WeekChip({ left, right, size = 'md' }: { left: string; right?: s
   return (
     <span className={`week-chip ${size}`}>
       <span className="l">{left}</span>
-      {right ? <span className="r">{right}</span> : null}
+      {right ? <><span className="sep" aria-hidden="true" /><span className="r">{right}</span></> : null}
     </span>
   );
 }

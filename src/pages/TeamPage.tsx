@@ -47,11 +47,11 @@ export function TeamPage({ abbr }: { abbr: string }) {
         </div>
         <div style={{ padding: '18px 20px 14px' }}>
           {s && (
-            <div className="grid4" style={{ textAlign: 'center' }}>
-              <div className="stat-box"><div className="v">{record(s.w, s.l, s.t)}</div><div className="k">Record</div></div>
-              <div className="stat-box"><div className="v">{s.streak}</div><div className="k">Streak</div></div>
-              <div className="stat-box"><div className="v">{fmt(s.pf - s.pa)}</div><div className="k">Pt diff</div></div>
-              <div className="stat-box"><div className="v">{d?.divRank ? ordinalRank(d.divRank) : '–'}</div><div className="k">In division</div></div>
+            <div className="stat4" aria-label="Season so far">
+              <div><span className="ic"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 4h6v5a3 3 0 0 1-6 0z" /><path d="M12 12v4M8 20h8M9 16h6" /></svg></span><span className="tx"><span className="k">Record</span><span className="v">{record(s.w, s.l, s.t).replace(/-/g, '–')}</span></span></div>
+              <div><span className="ic"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 3L5 14h6l-1 7 8-11h-6z" /></svg></span><span className="tx"><span className="k">Streak</span><span className="v">{streakText(s.streak)}</span></span></div>
+              <div><span className="ic"><Icon name="trend" size={20} stroke={2.2} /></span><span className="tx"><span className="k">Point diff</span><span className="v">{fmt(s.pf - s.pa)}</span></span></div>
+              <div><span className="ic"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg></span><span className="tx"><span className="k">Division</span><span className="v">{d?.divRank ? `${ordinalRank(d.divRank)} of 4` : '–'}</span></span></div>
             </div>
           )}
         </div>
