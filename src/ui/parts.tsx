@@ -16,7 +16,10 @@ const ICONS = {
   search: <><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></>,
   calendar: <><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M3 10h18M8 3v4M16 3v4" /></>,
   share: <><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" /><path d="M12 3v12M7 8l5-5 5 5" /></>,
-  clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>
+  clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+  trend: <><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></>,
+  star: <path d="M12 3l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.4l-5.7 3.1 1.2-6.4L2.8 9.7l6.4-.8z" />,
+  where: <path d="M4 11l8-7 8 7v9H4z" />
 };
 export type IconName = keyof typeof ICONS;
 
@@ -31,9 +34,9 @@ export function Icon({ name, size = 20, stroke = 2 }: { name: IconName; size?: n
 // ---------- Team badge (abbreviation on team color; no logos) ----------
 export function Badge({ abbr, size = 36 }: { abbr: string; size?: number }) {
   const t = team(abbr);
-  const font = size >= 44 ? 13 : size >= 36 ? 12 : size >= 30 ? 11 : 10;
+  const font = size >= 56 ? 17 : size >= 44 ? 15 : size >= 36 ? 13 : size >= 30 ? 12 : 10;
   return (
-    <span className="badge" aria-hidden="true" style={{ width: size, height: size, borderRadius: size >= 36 ? (size >= 44 ? 12 : 10) : size >= 30 ? 8 : 7, background: t.color, color: t.text, fontSize: font }}>
+    <span className="badge" aria-hidden="true" style={{ width: size, height: size, borderRadius: Math.round(size * 0.31), background: t.color, color: t.text, fontSize: font }}>
       {abbr}
     </span>
   );
@@ -73,11 +76,11 @@ export function PadCard({ title, right, children, label }: { title?: ReactNode; 
   );
 }
 
-export function LinkButton({ to, kind = 'tint', children }: { to: string; kind?: 'primary' | 'tint'; children: ReactNode }) {
+export function LinkButton({ to, kind = 'primary', children }: { to: string; kind?: 'primary' | 'tint'; children: ReactNode }) {
   return (
     <a className={`btn ${kind}`} href={to}>
       {children}
-      <Icon name="next" size={16} stroke={2.4} />
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M5 12h12M13 6l6 6-6 6" /></svg>
     </a>
   );
 }
@@ -94,6 +97,35 @@ export function SampleBadge() {
   return IS_SAMPLE ? <span className="sample-pill" title="Fictional sample data replaying on a loop">SAMPLE</span> : null;
 }
 
+const NAV_ICONS = {
+  home: (
+    <>
+      <path d="M3 13c0-3 5.8-6 13-6s13 3 13 6v9c0 3-5.8 6-13 6S3 25 3 22z" fill="#6B6690" />
+      <path d="M3 13c0 3 5.8 6 13 6s13-3 13-6" fill="none" stroke="#3E3A63" strokeWidth="1.4" />
+      <ellipse cx="16" cy="16.5" rx="9" ry="4.2" fill="#22A447" />
+      <path d="M16 12.4v8.2M11 13.2v6.6M21 13.2v6.6" stroke="#FFFFFF" strokeWidth="1" opacity=".8" />
+      <path d="M6 6V3M26 6V3" stroke="#3E3A63" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="6" cy="3" r="1.8" fill="#FACC15" /><circle cx="26" cy="3" r="1.8" fill="#FACC15" />
+    </>
+  ),
+  games: (
+    <g transform="rotate(-35 16 16)">
+      <ellipse cx="16" cy="16" rx="13" ry="7.8" fill="#8B4513" stroke="#4A230A" strokeWidth="1.6" />
+      <path d="M6 12.5q10-3.5 20 0M6 19.5q10 3.5 20 0" fill="none" stroke="#FFFFFF" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M11.5 16h9" stroke="#FFFFFF" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M13.5 14.2v3.6M16 14.2v3.6M18.5 14.2v3.6" stroke="#FFFFFF" strokeWidth="1.3" strokeLinecap="round" />
+    </g>
+  ),
+  standings: (
+    <>
+      <path d="M9 4h14v7a7 7 0 0 1-14 0z" fill="#FACC15" stroke="#B45309" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M9 6H5v2a5 5 0 0 0 5 5M23 6h4v2a5 5 0 0 1-5 5" fill="none" stroke="#B45309" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M16 18v5" stroke="#B45309" strokeWidth="2.2" />
+      <path d="M10 28h12l-1.5-5h-9z" fill="#C2410C" stroke="#7C2D12" strokeWidth="1.4" strokeLinejoin="round" />
+    </>
+  )
+};
+
 export function Nav({ active }: { active: 'home' | 'games' | 'standings' | 'none' }) {
   const items = [
     { key: 'home', label: 'Home', to: href.home },
@@ -105,7 +137,7 @@ export function Nav({ active }: { active: 'home' | 'games' | 'standings' | 'none
       <div className="nav-inner">
         {items.map((it) => (
           <a key={it.key} href={it.to} aria-current={active === it.key ? 'page' : undefined}>
-            <Icon name={it.key} size={22} />
+            <svg aria-hidden="true" width="30" height="30" viewBox="0 0 32 32">{NAV_ICONS[it.key]}</svg>
             {it.label}
           </a>
         ))}
@@ -114,10 +146,40 @@ export function Nav({ active }: { active: 'home' | 'games' | 'standings' | 'none
   );
 }
 
+/** Two-part tag that never wraps: orange "WEEK 8" + navy date or place. */
+export function WeekChip({ left, right, size = 'md' }: { left: string; right?: string | null; size?: 'md' | 'lg' }) {
+  return (
+    <span className={`week-chip ${size}`}>
+      <span className="l">{left}</span>
+      {right ? <span className="r">{right}</span> : null}
+    </span>
+  );
+}
+
+/** Round tinted arrow used on every tappable row/card. */
+export function GoArrow() {
+  return (
+    <span className="go" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
+    </span>
+  );
+}
+
+/** Centered header row: back button | title (+ extra lines) | right slot or spacer. */
+export function CenterBar({ fallback, backLabel, right, children }: { fallback: string; backLabel?: string; right?: ReactNode; children: ReactNode }) {
+  return (
+    <header className="center-bar">
+      <BackButton fallback={fallback} label={backLabel} />
+      <div className="mid">{children}</div>
+      {right ?? <span aria-hidden="true" />}
+    </header>
+  );
+}
+
 export function Footer({ odds = true }: { odds?: boolean }) {
   return (
-    <p className="footer-note">
-      {odds ? 'Odds for information only. ' : ''}Win probability is calculated by Gridline. {IS_SAMPLE ? 'Fictional sample data. ' : 'Data under licence from our data providers. '}Not affiliated with the NFL.
+    <p className="footer-note fine">
+      {odds ? 'Odds for information only. ' : ''}Chance to win is calculated by Gridline. {IS_SAMPLE ? 'Fictional sample data. ' : 'Data under licence from our data providers. '}Not affiliated with the NFL.
     </p>
   );
 }
@@ -127,8 +189,8 @@ export function OfflineBanner({ online, stale, updatedAt, retry }: { online: boo
   if (online && !stale) return null;
   return (
     <div className="offline" role="status">
-      <span>{online ? "Can't reach live data." : "You're offline."}{updatedAt ? <> Showing what we had <b>{agoText(updatedAt)}</b>.</> : null}</span>
-      <button onClick={retry}>Retry</button>
+      <span><b>{online ? "Can't reach live scores." : "You're offline."}</b>{updatedAt ? <> Showing the score from {agoText(updatedAt)}.</> : null}</span>
+      <button onClick={retry}>Try again</button>
     </div>
   );
 }
@@ -136,7 +198,7 @@ export function OfflineBanner({ online, stale, updatedAt, retry }: { online: boo
 export function ErrorCard({ error, retry }: { error: Error; retry: () => void }) {
   return (
     <div className="alert" role="alert">
-      <b>Couldn't load the latest data</b>
+      <b>We couldn't load the latest scores</b>
       <span className="sub">{error.message}. We'll keep trying automatically.</span>
       <button className="btn tint" onClick={retry}>Try again</button>
     </div>
@@ -189,7 +251,7 @@ export function FieldBar({ g }: { g: Game }) {
           <div className="mid" />
           {f.start != null && <div className="drv" style={{ left: `${Math.min(f.start, f.los)}%`, width: `${Math.abs(f.los - f.start)}%` }} />}
           <div className="mk" style={{ left: `calc(${f.los}% - 2px)`, width: 4, background: 'var(--accent)' }} />
-          {f.fd != null && <div className="mk" style={{ left: `calc(${f.fd}% - 1px)`, width: 3, background: 'var(--warn)' }} />}
+          {f.fd != null && <div className="mk" style={{ left: `calc(${f.fd}% - 1px)`, width: 3, background: 'var(--navy)' }} />}
         </div>
         <span className="tag" style={{ background: h.color, color: h.text }}>{h.abbr}</span>
       </div>
@@ -296,7 +358,7 @@ export function FormDots({ s }: { s?: Standing }) {
   if (!s) return null;
   return (
     <span className="form" aria-label={`Last ${s.last5.length}: ${s.last5.join(' ')}`}>
-      {s.last5.map((r, i) => <i key={i} className={r === 'W' ? 'w' : r === 'T' ? 't' : ''} />)}
+      {s.last5.map((r, i) => <i key={i} className={r === 'W' ? 'w' : r === 'T' ? 't' : 'l'} />)}
     </span>
   );
 }
@@ -305,10 +367,15 @@ export function FormBoxes({ s }: { s?: Standing }) {
   if (!s) return null;
   return (
     <span className="form-lg" aria-label={`Last ${s.last5.length}, oldest first: ${s.last5.join(' ')}`}>
-      {s.last5.map((r, i) => <span key={i} className={r === 'W' ? 'w' : ''}>{r}</span>)}
+      {s.last5.map((r, i) => <span key={i} className={r === 'W' ? 'w' : r === 'L' ? 'l' : ''}>{r}</span>)}
     </span>
   );
 }
+
+const STATUS_WORDS: Record<InjuryStatus, string> = {
+  Out: 'Out', IR: 'Out long-term', Doubtful: 'Unlikely to play', Questionable: 'May not play', Probable: 'Likely to play', Returned: 'Back playing'
+};
+export const injuryWords = (s: InjuryStatus) => STATUS_WORDS[s] ?? s;
 
 export function injuryClass(s: InjuryStatus): string {
   if (s === 'Out' || s === 'IR' || s === 'Doubtful') return 's-out';
@@ -316,18 +383,30 @@ export function injuryClass(s: InjuryStatus): string {
   return 's-ok';
 }
 
+const POS_WORDS: Record<string, string> = {
+  QB: 'Quarterback', RB: 'Running back', FB: 'Fullback', WR: 'Receiver', TE: 'Tight end', OL: 'Offensive line', LT: 'Left tackle', RT: 'Right tackle',
+  LG: 'Left guard', RG: 'Right guard', OT: 'Tackle', T: 'Tackle', OG: 'Guard', G: 'Guard', NT: 'Nose tackle', EDGE: 'Edge rusher', C: 'Center', DL: 'Defensive line', DE: 'Defensive end', DT: 'Defensive tackle', LB: 'Linebacker', OLB: 'Linebacker',
+  ILB: 'Linebacker', MLB: 'Linebacker', CB: 'Cornerback', S: 'Safety', FS: 'Safety', SS: 'Safety', DB: 'Defensive back', K: 'Kicker', P: 'Punter', LS: 'Long snapper'
+};
+export const posWords = (pos: string) => POS_WORDS[pos?.toUpperCase()] ?? pos;
+
 export function InjuryRows({ list, showTeam = true, empty = 'No players on the injury report.' }: { list: Injury[]; showTeam?: boolean; empty?: string }) {
   if (!list.length) return <p className="empty">{empty}</p>;
   return (
     <>
       {list.map((i, n) => (
-        <div className="row" key={`${i.team}-${i.name}-${n}`}>
-          {showTeam && <span style={{ width: 36, fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>{i.team}</span>}
-          <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 14, fontWeight: 600 }}>{i.name} <span className="muted" style={{ fontWeight: 400 }}>· {i.pos}</span></span>
-            {i.detail && <span className="sub">{i.detail}</span>}
+        <div className="row inj" key={`${i.team}-${i.name}-${n}`}>
+          <span className="who">
+            <b>{i.name}</b>
+            <span className="sub">{showTeam ? `${teamName(i.team)} · ` : ''}{posWords(i.pos)}</span>
+            {i.detail && (
+              <span className="hurt">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C2410C" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="8" rx="4" transform="rotate(-35 12 12)" /><path d="M10.5 11.2h.01M13.5 12.8h.01M12 10.5h.01M12 13.5h.01" /></svg>
+                {i.detail.charAt(0).toUpperCase() + i.detail.slice(1)}{/injur/i.test(i.detail) ? '' : ' injury'}
+              </span>
+            )}
           </span>
-          <span className={`status-pill ${injuryClass(i.status)}`}>{i.status}</span>
+          <span className={`status-pill ${injuryClass(i.status)}`}>{injuryWords(i.status)}</span>
         </div>
       ))}
     </>

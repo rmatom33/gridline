@@ -6,7 +6,7 @@ import { href } from '../data/router';
 import { TEAMS } from '../shared/teams';
 import { record, streakText } from '../shared/format';
 import { winPct } from '../shared/teamdetail';
-import { Badge, ErrorCard, Footer, FormDots, Nav, OfflineBanner, SampleBadge, Skeleton, teamName } from '../ui/parts';
+import { Badge, ErrorCard, Footer, FormDots, Nav, OfflineBanner, SampleBadge, Skeleton, teamName, WeekChip } from '../ui/parts';
 
 const DIVS = ['East', 'North', 'South', 'West'] as const;
 const byRecord = (a: Standing, b: Standing) => winPct(b) - winPct(a) || (b.pf - b.pa) - (a.pf - a.pa);
@@ -34,18 +34,18 @@ export function StandingsPage({ conf: initial }: { conf?: 'AFC' | 'NFC' }) {
     <div className="app">
       <header className="top">
         <OfflineBanner online={online} stale={q.stale} updatedAt={q.updatedAt} retry={q.refresh} />
-        <div className="top-row">
-          <span className="title-lg">Standings</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><SampleBadge />{through > 0 && <span className="kicker">THROUGH WK {through}</span>}</span>
+        <div className="top-row" style={{ paddingTop: 22, alignItems: 'flex-end' }}>
+          <span className="title-lg" style={{ fontSize: 34 }}>Standings</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><SampleBadge />{through > 0 && <WeekChip left={`WEEK ${through}`} right="Latest" />}</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '0 16px 12px' }}>
-          <div className="seg" role="tablist" aria-label="Conference">
-            {(['AFC', 'NFC'] as const).map((c) => <button key={c} role="tab" aria-selected={conf === c} onClick={() => setConf(c)}>{c}</button>)}
+        <div style={{ padding: '4px 20px 14px' }}>
+          <div className="seg" role="tablist" aria-label="Conference" style={{ borderRadius: 28 }}>
+            {(['AFC', 'NFC'] as const).map((c) => <button key={c} role="tab" aria-selected={conf === c} onClick={() => setConf(c)} style={{ height: 48, fontSize: 17 }}>{c}</button>)}
           </div>
-          <div className="seg" role="tablist" aria-label="View">
-            <button role="tab" aria-selected={view === 'division'} onClick={() => setView('division')}>Division</button>
-            <button role="tab" aria-selected={view === 'playoffs'} onClick={() => setView('playoffs')}>Playoffs</button>
-          </div>
+        </div>
+        <div className="viewbtns" role="tablist" aria-label="View">
+          <button role="tab" aria-selected={view === 'division'} onClick={() => setView('division')}>By division</button>
+          <button role="tab" aria-selected={view === 'playoffs'} onClick={() => setView('playoffs')}>Playoff race</button>
         </div>
       </header>
 
@@ -57,12 +57,12 @@ export function StandingsPage({ conf: initial }: { conf?: 'AFC' | 'NFC' }) {
           {hot && cold && (
             <section className="hotcold" aria-label="Hot and cold streaks">
               <a href={href.team(hot.team)}>
-                <span className="kicker" style={{ color: 'var(--accent)' }}>HOTTEST</span>
+                <span className="kicker" style={{ color: 'var(--accent)' }}>On a roll</span>
                 <b>{hot.team} · {streakText(hot.streak)}</b>
                 <span className="sub">{fmt(diff(hot))} point differential</span>
               </a>
               <a href={href.team(cold.team)}>
-                <span className="kicker" style={{ color: 'var(--down)' }}>COLDEST</span>
+                <span className="kicker" style={{ color: 'var(--down)' }}>Struggling</span>
                 <b>{cold.team} · {streakText(cold.streak)}</b>
                 <span className="sub">{fmt(diff(cold))} point differential</span>
               </a>
@@ -87,10 +87,10 @@ export function StandingsPage({ conf: initial }: { conf?: 'AFC' | 'NFC' }) {
 
           <div className="legend">
             <span><span className="form"><i className="w" /></span>Win</span>
-            <span><span className="form"><i /></span>Loss</span>
+            <span><span className="form"><i className="l" /></span>Loss</span>
             <span><span className="seed">1</span>Current playoff seed</span>
           </div>
-          <p className="footer-note">Seeds use a simplified tiebreak (record, then point differential), so they can differ from the official NFL order in close races.</p>
+          <p className="footer-note fine">Seeds use a simplified tiebreak (record, then point differential), so they can differ from the official NFL order in close races.</p>
           <Footer odds={false} />
         </main>
       )}
@@ -103,7 +103,7 @@ function Table({ title, teams, sub }: { title: string; teams: Standing[]; sub?: 
   return (
     <section className="card" aria-label={title}>
       <div className="st-head" role="row">
-        <span>{title.toUpperCase()}</span><span>W-L</span><span>DIFF</span><span>STRK</span><span>LAST 5</span>
+        <span>{title}</span><span>Record</span><span>Streak</span><span>Last 5</span>
       </div>
       {teams.map((s, i) => (
         <div key={s.team}>
@@ -112,7 +112,6 @@ function Table({ title, teams, sub }: { title: string; teams: Standing[]; sub?: 
           <a className="st-row" href={href.team(s.team)} aria-label={`${teamName(s.team, true)}, ${record(s.w, s.l, s.t)}${s.seed ? `, seed ${s.seed}` : ''}`}>
             <span className="tm"><Badge abbr={s.team} size={26} />{s.team}{s.seed ? <span className="seed">{s.seed}</span> : null}</span>
             <span className="num">{record(s.w, s.l, s.t)}</span>
-            <span className="num" style={{ color: diff(s) > 0 ? 'var(--text)' : 'var(--muted)' }}>{fmt(diff(s))}</span>
             <span className="num">{s.streak}</span>
             <FormDots s={s} />
           </a>

@@ -4,15 +4,14 @@ import { team } from '../shared/teams';
 import { data } from '../data/source';
 import { cached, useNow, useOnline, usePoll } from '../data/usePoll';
 import { href } from '../data/router';
-import { kickoffTime, moneyline, periodLabel, record, shortDay, spreadLabel, streakText } from '../shared/format';
+import { clockTime, countdown, kickoffTime, moneyline, periodLabel, record, shortDay, spreadLabel, streakText } from '../shared/format';
 import { impact, statLine } from '../shared/stats';
 import { groupDrives, wpDeltas } from '../shared/drives';
 import {
-  BackButton, Badge, Card, ErrorCard, Field, Footer, FormBoxes, Icon, InjuryRows, LinkButton, Nav, OfflineBanner,
-  PadCard, SampleBadge, situationText, Skeleton, StatBars, teamName, WPBar, WPChart
+  Badge, CenterBar, GoArrow, injuryWords, Card, ErrorCard, Field, Footer, FormBoxes, Icon, InjuryRows, LinkButton, Nav, OfflineBanner,
+  PadCard, posWords, situationText, Skeleton, StatBars, teamName, WeekChip, WPBar, WPChart
 } from '../ui/parts';
-import { liveStatus } from '../ui/GameRow';
-import { Countdown } from './GamesPage';
+import { favoredText, liveStatus } from '../ui/GameRow';
 
 const isLiveG = (g: GameDetail) => g.status === 'live' || g.status === 'halftime';
 
@@ -22,19 +21,17 @@ export function GamePage({ id }: { id: string }) {
   const st = usePoll(() => cached('standings', () => data.standings()), 0, []);
   const g = q.data;
   const stale = q.stale || !online;
-  const stateLabel = !g ? '' : g.status === 'scheduled' ? 'PRE-GAME' : g.status === 'halftime' ? 'HALFTIME' : g.status === 'final' ? 'FINAL' : g.status === 'postponed' ? 'POSTPONED' : 'LIVE';
-  const city = g?.venue?.city ? ` · ${g.venue.city.toUpperCase()}` : '';
 
   return (
     <div className="app">
       <div className="top">
         <OfflineBanner online={online} stale={q.stale} updatedAt={q.updatedAt} retry={q.refresh} />
-        <header className="top-row slim">
-          <BackButton fallback={href.games} />
-          <span className="kicker" style={{ textAlign: 'center' }}>{g ? `${stateLabel} · WK ${g.week}${city}` : ''}</span>
-          {g?.status === 'final' ? <ShareButton g={g} /> : <span style={{ width: 44, display: 'flex', justifyContent: 'flex-end' }}><SampleBadge /></span>}
-        </header>
+        <CenterBar fallback={href.games} backLabel="Back to all games" right={g?.status === 'final' ? <ShareButton g={g} /> : undefined}>
+          <span className="ttl">{g ? `${teamName(g.away.abbr)} at ${teamName(g.home.abbr)}` : 'Game'}</span>
+          {g && <WeekChip left={`WEEK ${g.week}`} right={g.venue?.city ?? null} />}
+        </CenterBar>
         {g && g.status !== 'scheduled' && g.status !== 'postponed' && <ScoreHeader g={g} standings={st.data} stale={stale} />}
+        {g && (g.status === 'scheduled' || g.status === 'postponed') && <PregameHeader g={g} standings={st.data} />}
       </div>
 
       {!g && q.error && <main className="page"><ErrorCard error={q.error} retry={q.refresh} /></main>}
@@ -60,44 +57,39 @@ export function GamePage({ id }: { id: string }) {
 
 function ScoreHeader({ g, standings, stale }: { g: GameDetail; standings: Standing[] | null; stale: boolean }) {
   const as = g.away.score ?? 0, hs = g.home.score ?? 0;
-  const rec = (abbr: string, fb?: string) => {
+  const final = g.status === 'final';
+  const winner = final ? (as > hs ? 'away' : hs > as ? 'home' : null) : null;
+  const words = (abbr: string) => {
     const s = standings?.find((x) => x.team === abbr);
-    return s ? record(s.w, s.l, s.t) : fb ?? '';
+    return s ? `Record ${s.w}–${s.l}${s.t ? `–${s.t}` : ''}` : '';
   };
-  const showTO = g.status === 'live';
   const side = (s: 'away' | 'home') => {
     const t = g[s];
     const hasBall = g.status === 'live' && g.possession === s;
-    const meta = rec(t.abbr, t.record);
+    const meta = final ? (winner === s ? 'won' : winner ? 'lost' : 'tied') : hasBall ? 'has the ball' : s === 'home' ? 'home team' : words(t.abbr);
     return (
-      <a href={href.team(t.abbr)} className={`sb-side ${s}`} aria-label={`${teamName(t.abbr, true)}${meta ? `, ${meta}` : ''}${hasBall ? ', has the ball' : ''}`}>
-        {s === 'away' && <Badge abbr={t.abbr} size={44} />}
+      <a href={href.team(t.abbr)} className="sb-side" aria-label={`${teamName(t.abbr, true)}, ${meta}`}>
+        <Badge abbr={t.abbr} size={60} />
+        <span className="tname">{teamName(t.abbr)}</span>
         <span className="meta">
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-            {hasBall && s === 'home' && <span className="poss" aria-hidden="true" />}{meta}{hasBall && s === 'away' && <span className="poss" aria-hidden="true" />}
-          </span>
-          {showTO && t.timeouts != null && (
+          {winner === s ? <span className="sb-status" style={{ height: 26, fontSize: 13 }}>WON</span> : <span style={{ whiteSpace: 'nowrap' }}>{meta}</span>}
+          {g.status === 'live' && t.timeouts != null && (
             <span className="timeouts" aria-label={`${t.timeouts} timeouts left`}>
               {[0, 1, 2].map((n) => <span key={n} className={n < t.timeouts! ? 'on' : ''} />)}
             </span>
           )}
         </span>
-        {s === 'home' && <Badge abbr={t.abbr} size={44} />}
       </a>
     );
   };
-  const final = g.status === 'final';
+  const dim = (mine: number, theirs: number) => (mine < theirs ? { color: 'var(--dim-on-navy)' } : undefined);
   return (
     <div className="scoreboard" aria-label="Scoreboard">
       {side('away')}
-      <div className="sb-mid" aria-label={`${g.away.abbr} ${as}, ${g.home.abbr} ${hs}, ${liveStatus(g)}`}>
-        <span className="sb-score">
-          <span style={{ color: final && as < hs ? 'var(--muted)' : g.status !== 'final' && as < hs ? 'var(--muted)' : undefined }}>{as}</span>
-          <span className="sep"> : </span>
-          <span style={{ color: hs < as ? 'var(--muted)' : undefined }}>{hs}</span>
-        </span>
-        <span className={`sb-status ${final ? 'final' : ''}`}>
-          {final ? liveStatus(g) : g.status === 'halftime' ? '● HALFTIME' : `● ${periodLabel(g.quarter)} · ${g.clock ?? ''}${stale ? ' · PAUSED' : ''}`}
+      <div className="sb-mid" aria-label={`${teamName(g.away.abbr)} ${as}, ${teamName(g.home.abbr)} ${hs}, ${liveStatus(g)}`}>
+        <span className="sb-score"><span style={dim(as, hs)}>{as}</span><span className="sep"> – </span><span style={dim(hs, as)}>{hs}</span></span>
+        <span className={`sb-status ${final || g.status === 'halftime' ? 'final' : ''}`}>
+          {final ? liveStatus(g) : g.status === 'halftime' ? 'Halftime' : `${periodLabel(g.quarter) === 'OT' ? 'OT' : ['1st', '2nd', '3rd', '4th'][(g.quarter ?? 1) - 1]} \u00b7 ${g.clock ?? ''} left${stale ? ' \u00b7 paused' : ''}`}
         </span>
       </div>
       {side('home')}
@@ -119,6 +111,48 @@ function ShareButton({ g }: { g: GameDetail }) {
     <button className="icon-btn" onClick={onClick} aria-label={done ? 'Link copied' : 'Share this result'} title={done ? 'Link copied' : 'Share'}>
       {done ? <span className="mono" style={{ fontSize: 10, color: 'var(--accent)' }}>COPIED</span> : <Icon name="share" />}
     </button>
+  );
+}
+
+function PregameHeader({ g, standings }: { g: GameDetail; standings: Standing[] | null }) {
+  const now = useNow();
+  const rec = (abbr: string, fb?: string) => {
+    const s = standings?.find((x) => x.team === abbr);
+    return s ? `Record ${s.w}–${s.l}${s.t ? `–${s.t}` : ''}` : fb ? `Record ${fb.replace('-', '–')}` : '';
+  };
+  const c = countdown(g.kickoff, now);
+  const cells: [string, string][] = c.days > 0
+    ? [[String(c.days), c.days === 1 ? 'day' : 'days'], [String(c.hours), c.hours === 1 ? 'hour' : 'hours']]
+    : [[String(c.hours), c.hours === 1 ? 'hour' : 'hours'], [String(c.mins).padStart(2, '0'), 'minutes']];
+  const t = clockTime(g.kickoff);
+  const day = c.days > 0 ? new Date(g.kickoff).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/New_York' }) : 'today';
+  return (
+    <>
+      <div className="pg-teams">
+        {(['away', 'home'] as const).map((side, i) => [
+          i === 1 ? <span key="at" className="at">at</span> : null,
+          <a key={side} href={href.team(g[side].abbr)}>
+            <Badge abbr={g[side].abbr} size={64} />
+            <span style={{ fontSize: 19, fontWeight: 700 }}>{teamName(g[side].abbr)}</span>
+            <span className="sub" style={{ fontSize: 14, whiteSpace: 'nowrap' }}>{rec(g[side].abbr, g[side].record)}</span>
+          </a>
+        ])}
+      </div>
+      {g.status !== 'postponed' && (
+        <div className="kickboard" role="timer" aria-label={`Kickoff ${day} at ${t}, in ${cells.map(([v, k]) => `${v} ${k}`).join(' ')}`}>
+          <div className="cd">
+            <span className="cap">KICKOFF IN</span>
+            <span className="nums">
+              <span className="n"><b>{cells[0][0]}</b><span>{cells[0][1]}</span></span>
+              <span className="colon" aria-hidden="true">:</span>
+              <span className="n"><b>{cells[1][0]}</b><span>{cells[1][1]}</span></span>
+            </span>
+          </div>
+          <div className="ko"><small>KICKOFF</small><b>{t.replace(/ [AP]M$/, '')}</b><span>{t.slice(-2)} {day}</span></div>
+        </div>
+      )}
+      <div style={{ height: 20 }} />
+    </>
   );
 }
 
@@ -175,7 +209,7 @@ function TeamStats({ g, title = 'Team stats' }: { g: GameDetail; title?: string 
   );
 }
 
-function FormCard({ g, standings, title = 'Team form · last 5', season = false }: { g: GameDetail; standings: Standing[] | null; title?: string; season?: boolean }) {
+function FormCard({ g, standings, title = 'Last 5 games', season = false }: { g: GameDetail; standings: Standing[] | null; title?: string; season?: boolean }) {
   const a = standings?.find((s) => s.team === g.away.abbr), h = standings?.find((s) => s.team === g.home.abbr);
   if (!a && !h) return null;
   const gp = (s?: Standing) => Math.max(1, (s?.w ?? 0) + (s?.l ?? 0) + (s?.t ?? 0));
@@ -215,11 +249,11 @@ function OddsWeather({ g, stale, live }: { g: GameDetail; stale: boolean; live: 
   const w = g.weather;
   return (
     <div className="grid2">
-      <section className="mini" aria-label={live ? 'Live odds' : 'Odds'}>
-        <span className="label">{live && o?.isLive ? 'Live odds' : 'Odds'}</span>
-        {stale ? <span className="sub">Hidden until we reconnect</span> : (
+      <section className="mini" aria-label="Betting line">
+        <span className="label">{live ? 'Betting line now' : 'Betting line'}</span>
+        {stale ? <span className="sub">Hidden until you're back online</span> : (
           <>
-            <span className="big">{spreadLabel(g) ?? 'No line'}</span>
+            <span className="big">{favoredText(g)?.replace(' favored', '') ?? 'No line yet'}</span>
             <span className="sub">
               {o?.homeMoneyline != null || o?.awayMoneyline != null ? <>ML {g.away.abbr} {moneyline(o?.awayMoneyline)} / {g.home.abbr} {moneyline(o?.homeMoneyline)}<br /></> : null}
               {o?.total != null ? `Total ${o.total}` : ''}
@@ -277,99 +311,73 @@ export function PlayRow({ p, delta }: { p: Play; delta?: number }) {
 // ---------------------------------------------------------------------------
 
 function Pregame({ g, standings, stale }: { g: GameDetail; standings: Standing[] | null; stale: boolean }) {
-  const now = useNow();
   const [tab, setTab] = useState<'away' | 'home'>('away');
   const hp = g.pregameHomeWinProb ?? g.homeWinProb ?? 0.5;
   const o = g.odds;
   const fav = o?.spread != null ? (o.spread <= 0 ? 'home' : 'away') : null;
   const dog = fav === 'home' ? 'away' : 'home';
-  const rec = (abbr: string, fb?: string) => {
-    const s = standings?.find((x) => x.team === abbr);
-    return s ? record(s.w, s.l, s.t) : fb ?? '';
-  };
-  const w = g.weather;
   const lineup = g.lineups[tab];
   const venue = [g.venue?.name, [g.venue?.city, g.venue?.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
   return (
     <>
-      <section className="card pad" aria-label="Matchup" style={{ gap: 16 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 8 }}>
-          {(['away', 'home'] as const).map((s, i) => {
-            const el = (
-              <a key={s} href={href.team(g[s].abbr)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: 'var(--text)' }}>
-                <Badge abbr={g[s].abbr} size={56} />
-                <span style={{ fontSize: 16, fontWeight: 700 }}>{teamName(g[s].abbr)}</span>
-                <span className="sub">{rec(g[s].abbr, g[s].record)} · {s === 'away' ? 'Away' : 'Home'}</span>
-              </a>
-            );
-            return i === 0 ? [el, <span key="at" className="mono muted" style={{ fontSize: 13, fontWeight: 700 }}>AT</span>] : el;
-          })}
-        </div>
-        {g.status === 'postponed'
-          ? <div className="alert"><b>Postponed</b><span className="sub">A new kickoff time hasn't been announced yet.</span></div>
-          : <Countdown iso={g.kickoff} now={now} />}
-        <span className="sub" style={{ textAlign: 'center' }}>{shortDay(g.kickoff)} · {kickoffTime(g.kickoff)}{venue ? ` · ${venue}` : ''} · {w?.dome ? 'Indoors' : 'Outdoor'}</span>
-      </section>
+      {g.status === 'postponed' && <div className="alert"><b>Postponed</b><span className="sub">A new kickoff time hasn't been announced yet.</span></div>}
+      <p className="sub" style={{ textAlign: 'center' }}>{shortDay(g.kickoff)} · {kickoffTime(g.kickoff)}{venue ? ` · ${venue}` : ''}</p>
 
       {!stale && (
-        <PadCard title="Pre-game win probability">
+        <PadCard title="Who's expected to win">
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 700 }}>
             <span>{g.away.abbr} {Math.round((1 - hp) * 100)}%</span><span>{g.home.abbr} {Math.round(hp * 100)}%</span>
           </div>
           <WPBar homeProb={hp} g={g} />
-          <span className="sub">Based on the betting line. Updates live once the game starts.</span>
+          <span className="sub">Based on the betting line. This updates after every play once the game starts.</span>
         </PadCard>
       )}
 
       {!stale && o && (o.spread != null || o.total != null) && (
-        <div className="grid3">
-          <section className="mini" aria-label="Spread"><span className="label">Spread</span><span className="big" style={{ fontSize: 17 }}>{spreadLabel(g) ?? '–'}</span><span className="sub">{fav ? `${g[dog].abbr} +${Math.abs(o.spread ?? 0)}` : ''}</span></section>
-          <section className="mini" aria-label="Moneyline"><span className="label">Moneyline</span><span className="big" style={{ fontSize: 17 }}>{fav ? `${g[fav].abbr} ${moneyline(o[fav === 'home' ? 'homeMoneyline' : 'awayMoneyline'])}` : '–'}</span><span className="sub">{fav ? `${g[dog].abbr} ${moneyline(o[dog === 'home' ? 'homeMoneyline' : 'awayMoneyline'])}` : ''}</span></section>
-          <section className="mini" aria-label="Total"><span className="label">Total</span><span className="big" style={{ fontSize: 17 }}>{o.total != null ? `O/U ${o.total}` : '–'}</span><span className="sub">Combined points</span></section>
-        </div>
-      )}
-
-      {w && (
-        <section className="mini" aria-label="Weather at kickoff" style={{ padding: 16 }}>
-          <span className="label">Weather at kickoff</span>
-          {w.dome
-            ? <><span className="big">Indoors</span><span className="sub">Dome · no weather effect</span></>
-            : <>
-              <span className="big">{w.tempF != null ? `${Math.round(w.tempF)}°F` : '–'}{w.description ? ` · ${w.description}` : ''}</span>
-              <span className="sub">{[w.windMph != null ? `Wind ${w.windDir ? `${w.windDir} ` : ''}${Math.round(w.windMph)} mph` : null, w.precipPct != null ? `Rain ${w.precipPct}%` : null, kickingNote(w.windMph)].filter(Boolean).join(' · ')}</span>
-            </>}
+        <section className="card pad" aria-label="The betting line">
+          <span className="card-title">The betting line</span>
+          {o.spread != null && <div className="tile"><span className="label">Point spread</span><b style={{ fontSize: 19 }}>{favoredText(g) ?? '–'}</b></div>}
+          {o.total != null && <div className="tile"><span className="label">Total points expected</span><span style={{ fontSize: 19 }}><b>{o.total}</b> between both teams</span></div>}
+          {fav && (o.homeMoneyline != null || o.awayMoneyline != null) && <div className="tile"><span className="label">Moneyline</span><span style={{ fontSize: 19 }}>{teamName(g[fav].abbr)} {moneyline(o[fav === 'home' ? 'homeMoneyline' : 'awayMoneyline'])} · {teamName(g[dog].abbr)} {moneyline(o[dog === 'home' ? 'homeMoneyline' : 'awayMoneyline'])}</span></div>}
+          <span className="note">For information only.</span>
         </section>
       )}
 
       {(g.lineups.away.length > 0 || g.lineups.home.length > 0) && (
-        <Card title="Starting lineups" right={
-          <div className="seg" role="tablist" aria-label="Team" style={{ width: 140 }}>
-            {(['away', 'home'] as const).map((s) => <button key={s} role="tab" aria-selected={tab === s} onClick={() => setTab(s)} style={{ height: 32, fontSize: 13 }}>{g[s].abbr}</button>)}
+        <section className="card pad" aria-label="Starting lineups">
+          <span className="card-title">Starting lineups</span>
+          <div className="teampick" role="tablist" aria-label="Pick a team">
+            {(['away', 'home'] as const).map((side) => {
+              const tm = team(g[side].abbr);
+              const on = tab === side;
+              return (
+                <button key={side} role="tab" aria-selected={on} onClick={() => setTab(side)}
+                  style={on ? { background: `radial-gradient(120% 140% at 0% 0%, ${tm.color}CC 0%, ${tm.color} 50%, #0B0A1C 140%)`, borderColor: tm.color } : undefined}>
+                  <span className="badge" style={{ width: 42, height: 42, borderRadius: 13, fontSize: 13, background: on ? '#FFFFFF' : tm.color, color: on ? tm.color : tm.text }}>{tm.abbr}</span>
+                  {tm.name}
+                </button>
+              );
+            })}
           </div>
-        }>
-          <div className="sub-head">OFFENSE · EXPECTED STARTERS UNTIL ACTIVES ARE ANNOUNCED</div>
-          {lineup.length ? lineup.map((p, i) => (
-            <div className="row" key={`${p.pos}-${i}`}>
-              <span className="mono" style={{ width: 36, fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>{p.pos}</span>
-              <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{p.name}</span>
-              {p.status && <span className={`status-pill ${p.status === 'Questionable' ? 's-q' : p.status === 'Out' || p.status === 'Doubtful' || p.status === 'IR' ? 's-out' : 's-ok'}`}>{p.status}</span>}
-            </div>
-          )) : <p className="empty">Lineup not available yet.</p>}
-        </Card>
+          <span className="sub">Expected starters on offense. Confirmed about 90 minutes before kickoff.</span>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {lineup.length ? lineup.map((p, i) => (
+              <div key={`${p.pos}-${i}`} style={{ padding: '12px 0', borderTop: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ width: 104, fontSize: 15, fontWeight: 700, color: 'var(--muted)' }}>{posWords(p.pos)}</span>
+                <span style={{ flex: 1, fontSize: 18, fontWeight: 700 }}>{p.name}</span>
+                {p.status && <span className={`status-pill ${p.status === 'Questionable' ? 's-q' : p.status === 'Out' || p.status === 'Doubtful' || p.status === 'IR' ? 's-out' : 's-ok'}`}>{injuryWords(p.status)}</span>}
+              </div>
+            )) : <p className="sub">Lineup not available yet.</p>}
+          </div>
+        </section>
       )}
 
       <Card title="Injury report"><InjuryRows list={g.injuries} /></Card>
-      <FormCard g={g} standings={standings} title="Form & season" season />
+      <FormCard g={g} standings={standings} title="Last 5 games" season />
     </>
   );
 }
 
-function kickingNote(wind?: number | null): string | null {
-  if (wind == null) return null;
-  if (wind >= 20) return 'Strong wind: kicks and deep passes affected';
-  if (wind >= 12) return 'Some effect on kicking';
-  return 'Little effect on kicking';
-}
 
 // ---------------------------------------------------------------------------
 // Live
@@ -386,7 +394,7 @@ function Live({ g, standings, stale }: { g: GameDetail; standings: Standing[] | 
   return (
     <>
       {g.summary && (
-        <PadCard title={`Summary · ${periodLabel(g.quarter)} ${g.clock ?? ''}`}>
+        <PadCard title="The story so far">
           <p className="prose">{g.summary}</p>
           <span className="note">Written automatically from the play-by-play</span>
         </PadCard>
@@ -410,9 +418,9 @@ function Live({ g, standings, stale }: { g: GameDetail; standings: Standing[] | 
       )}
 
       {stale ? (
-        <PadCard title="Win probability"><span className="sub">Back when you're online. We hide it so you never see an out-of-date number as if it were live.</span></PadCard>
+        <PadCard title="Chance to win"><span className="sub">Back when you're online. We hide it so you never see an out-of-date number as if it were live.</span></PadCard>
       ) : (
-        <PadCard title="Win probability" right={<span style={{ fontSize: 15, fontWeight: 700 }}>{leader} {lp}%</span>}>
+        <PadCard title="Chance to win" right={<span style={{ fontSize: 15, fontWeight: 700 }}>{leader} {lp}%</span>}>
           <WPChart series={g.winProbSeries} g={g} />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)', gap: 8 }}>
             <span>{g.home.abbr} side ↑</span>
@@ -424,12 +432,12 @@ function Live({ g, standings, stale }: { g: GameDetail; standings: Standing[] | 
 
       <OddsWeather g={g} stale={stale} live />
 
-      <Card title="Latest plays" right={<span className="sub">{g.home.abbr} win chance</span>}>
+      <Card title="Latest plays" right={<span className="sub">{teamName(g.home.abbr)} chance</span>}>
         {g.plays.length ? g.plays.slice(0, 5).map((p) => <PlayRow key={p.id} p={p} delta={stale ? undefined : deltas.get(p.id)} />) : <p className="empty">Plays will appear here.</p>}
-        <LinkButton to={href.plays(g.id)}>All plays and drives</LinkButton>
+        <LinkButton to={href.plays(g.id)}>See every play</LinkButton>
       </Card>
 
-      <PlayerCard g={g} title="Player stats" count={4} />
+      <PlayerCard g={g} title="Players to watch" count={4} />
       <TeamStats g={g} />
       <FormCard g={g} standings={standings} />
       <Card title="Injuries"><InjuryRows list={g.injuries} /></Card>
@@ -450,18 +458,18 @@ function Halftime({ g, stale }: { g: GameDetail; stale: boolean }) {
       <section className="card pad" aria-label="Second half" style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
         <span style={{ width: 56, height: 56, borderRadius: 14, background: 'var(--tint-bg)', color: 'var(--tint-fg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="clock" size={26} /></span>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <b style={{ fontSize: 15 }}>Second half coming up</b>
+          <b style={{ fontSize: 19 }}>Second half coming up</b>
           <span className="sub">This page switches back to live play-by-play when the third quarter starts.</span>
         </div>
       </section>
 
-      <PadCard title="First-half recap">
+      <PadCard title="First half in brief">
         {g.summary && <p className="prose">{g.summary}</p>}
         <LineScore g={g} half />
       </PadCard>
 
       {!stale && (
-        <PadCard title="Win probability" right={<span style={{ fontSize: 15, fontWeight: 700 }}>{hp >= 0.5 ? g.home.abbr : g.away.abbr} {Math.round(Math.max(hp, 1 - hp) * 100)}%</span>}>
+        <PadCard title="Chance to win" right={<span style={{ fontSize: 15, fontWeight: 700 }}>{hp >= 0.5 ? g.home.abbr : g.away.abbr} {Math.round(Math.max(hp, 1 - hp) * 100)}%</span>}>
           <WPBar homeProb={hp} g={g} />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)', gap: 8 }}>
             <span>{g.away.abbr} {Math.round((1 - hp) * 100)}%</span>
@@ -475,7 +483,7 @@ function Halftime({ g, stale }: { g: GameDetail; stale: boolean }) {
       <PlayerCard g={g} title="First-half leaders" count={3} />
 
       {scoring.length > 0 && (
-        <Card title="Scoring">
+        <Card title="Scoring so far">
           {scoring.map((p) => (
             <div className="row" key={p.id}>
               <span className="mono" style={{ width: 64, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{periodLabel(p.quarter)} {p.clock}</span>
@@ -519,20 +527,13 @@ function Final({ g }: { g: GameDetail }) {
 
   return (
     <>
-      <PadCard title="Recap">
+      <PadCard title="What happened">
         {g.summary && <p className="prose">{g.summary}</p>}
         <LineScore g={g} />
       </PadCard>
 
       {gwd && winner && gwd.playCount >= 2 && (
-        <PadCard title="Game-winning drive">
-          <div className="grid3" style={{ textAlign: 'center' }}>
-            <div className="stat-box"><div className="v">{gwd.playCount}</div><div className="k">Plays</div></div>
-            <div className="stat-box"><div className="v">{gwd.yards}</div><div className="k">Yards</div></div>
-            <div className="stat-box"><div className="v">{gwd.time}</div><div className="k">Time</div></div>
-          </div>
-          {big && <span className="sub" style={{ fontSize: 13 }}>Biggest play: {big.text}</span>}
-        </PadCard>
+        <WinningDrive g={g} winner={winner} drive={gwd} big={big?.text} />
       )}
 
       {g.winProbSeries.length > 1 && (
@@ -543,14 +544,14 @@ function Final({ g }: { g: GameDetail }) {
       )}
 
       {key.length > 0 && (
-        <Card title="Key plays" right={<span className="sub">{g.home.abbr} win chance</span>}>
+        <Card title="Key plays" right={<span className="sub">{teamName(g.home.abbr)} chance</span>}>
           {key.map((p) => <PlayRow key={p.id} p={{ ...p, clock: `${periodLabel(p.quarter)} ${p.clock}` }} delta={deltas.get(p.id)} />)}
-          <LinkButton to={href.plays(g.id)}>All plays and drives</LinkButton>
+          <LinkButton to={href.plays(g.id)}>See every play</LinkButton>
         </Card>
       )}
-      {!key.length && g.plays.length > 0 && <LinkButton to={href.plays(g.id)}>All plays and drives</LinkButton>}
+      {!key.length && g.plays.length > 0 && <LinkButton to={href.plays(g.id)}>See every play</LinkButton>}
 
-      <PlayerCard g={g} title="Player stats" count={5} />
+      <PlayerCard g={g} title="Players of the game" count={5} />
       <TeamStats g={g} />
       <UpNext g={g} />
     </>
@@ -578,9 +579,52 @@ function UpNext({ g }: { g: GameDetail }) {
             </span>
             <span className="sub">{next ? `${shortDay(next.kickoff)} · ${kickoffTime(next.kickoff)}${spreadLabel(next) ? ` · ${spreadLabel(next)}` : ''}` : `Week ${g.week + 1}`}</span>
           </span>
-          <Icon name="next" size={16} />
+          <GoArrow />
         </a>
       ))}
     </Card>
+  );
+}
+
+function WinningDrive({ g, winner, drive, big }: { g: GameDetail; winner: 'away' | 'home'; drive: { playCount: number; yards: number; time: string; quarter: number; plays: Play[] }; big?: string }) {
+  const me = team(g[winner].abbr), them = team(g[winner === 'away' ? 'home' : 'away'].abbr);
+  const last = drive.plays[drive.plays.length - 1] ?? drive.plays[0];
+  const scoreText = last?.text?.toLowerCase().includes('field goal') ? 'field goal' : 'touchdown';
+  const startPct = Math.max(0, Math.min(95, 100 - drive.yards));
+  const mins = drive.time.split(':');
+  const timeWords = mins.length === 2 ? `${Number(mins[0])} minute${Number(mins[0]) === 1 ? '' : 's'} ${Number(mins[1])} seconds` : drive.time;
+  return (
+    <section className="card pad" aria-label="The winning drive" style={{ gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <Badge abbr={me.abbr} size={44} />
+        <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+          <span className="card-title">The winning drive</span>
+          <span className="sub">{me.name} {scoreText} · {periodLabel(drive.quarter) === 'OT' ? 'overtime' : '4th quarter'}{last?.clock ? `, ${last.clock} left` : ''}</span>
+        </span>
+      </div>
+      <div role="img" aria-label={`The ${me.name} drove ${drive.yards} yards into the ${them.name} end zone`} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div className="drivefield">
+          <span className="ez left" style={{ background: me.color }}>{me.name.toUpperCase()}</span>
+          <span className="turf">
+            <span className="path" style={{ left: `${startPct}%`, right: 0 }} />
+            <span className="start" style={{ left: `${startPct}%` }} />
+            <span className="startlbl" style={{ left: `${startPct}%` }}>START</span>
+            <span className="fifty">50</span>
+          </span>
+          <span className="ez" style={{ background: them.color }}>{them.name.toUpperCase()}</span>
+          <span className="ball" aria-hidden="true" style={{ right: 8 }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: 'var(--muted)' }}>
+          <span>{drive.yards >= 50 ? `${me.name}' own ${100 - drive.yards}` : `${them.name}' ${drive.yards}`}</span><span style={{ color: 'var(--accent-text)' }}>{scoreText === 'touchdown' ? 'Touchdown' : 'Field goal'}</span>
+        </div>
+      </div>
+      <p style={{ fontSize: 19, lineHeight: 1.4 }}>The {me.name} went <b>{drive.yards} yards</b> in <b>{drive.playCount} plays</b>, using up <b>{timeWords}</b> of the clock.</p>
+      {big && (
+        <div className="callout">
+          <span className="ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7-6.2-3.7-6.2 3.7 1.6-7L2 9.2l7.1-.6z" /></svg></span>
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}><b style={{ fontSize: 15, color: 'var(--accent-text)' }}>Biggest play</b><span style={{ fontSize: 17 }}>{big}</span></span>
+        </div>
+      )}
+    </section>
   );
 }

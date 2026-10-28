@@ -3,7 +3,7 @@ import { data } from '../data/source';
 import { useOnline, usePoll } from '../data/usePoll';
 import { href } from '../data/router';
 import { groupDrives, wpDeltas, type Drive } from '../shared/drives';
-import { BackButton, Badge, ErrorCard, Icon, Nav, OfflineBanner, Skeleton, teamName } from '../ui/parts';
+import { Badge, CenterBar, ErrorCard, Icon, Nav, OfflineBanner, Skeleton, teamName } from '../ui/parts';
 import { liveStatus } from '../ui/GameRow';
 import { PlayRow } from './GamePage';
 
@@ -16,7 +16,6 @@ export function PlaysPage({ id }: { id: string }) {
   const [filter, setFilter] = useState<Filter>('all');
   const [open, setOpen] = useState<Record<number, boolean>>({});
   const g = q.data;
-  const live = g?.status === 'live' || g?.status === 'halftime';
 
   const drives = g ? groupDrives(g.plays, g.status === 'live') : [];
   const deltas = g ? wpDeltas(g.plays, g.pregameHomeWinProb) : new Map<string, number>();
@@ -31,19 +30,18 @@ export function PlaysPage({ id }: { id: string }) {
   const quarters = [...new Set(shown.map((d) => Math.min(d.quarter, 5)))].sort((a, b) => b - a);
   const latestQ = quarters[0];
 
-  const filters: [Filter, string][] = g ? [['all', 'All'], ['scoring', 'Scoring'], ['turnovers', 'Turnovers'], ['away', g.away.abbr], ['home', g.home.abbr]] : [];
+  const filters: [Filter, string][] = g ? [['all', 'All plays'], ['scoring', 'Scores'], ['turnovers', 'Turnovers'], ['away', g.away.abbr], ['home', g.home.abbr]] : [];
 
   return (
     <div className="app">
       <div className="top">
         <OfflineBanner online={online} stale={q.stale} updatedAt={q.updatedAt} retry={q.refresh} />
-        <header className="top-row slim" style={{ justifyContent: 'flex-start' }}>
-          <BackButton fallback={href.game(id)} label="Back to game" />
-          <div className="brand">
-            <span style={{ fontSize: 18, fontWeight: 700 }}>Play-by-play</span>
-            {g && <span className="mono" style={{ fontSize: 12, color: 'var(--muted)' }}>{g.away.abbr} {g.away.score ?? 0} · {g.home.abbr} {g.home.score ?? 0} · <span className={live ? 'live-text' : ''}>{live ? '● ' : ''}{liveStatus(g)}</span></span>}
-          </div>
-        </header>
+        <CenterBar fallback={href.game(id)} backLabel="Back to game">
+          <span className="ttl">Every play</span>
+          {g && <span style={{ marginTop: 8, fontSize: 18, fontWeight: 800, whiteSpace: 'nowrap' }}>{teamName(g.away.abbr)} {g.away.score ?? 0} · {teamName(g.home.abbr)} {g.home.score ?? 0}</span>}
+          {g && <span className="gpill" style={{ marginTop: 8, background: 'var(--navy2)', color: '#E4E0F2' }}>{(g.status === 'live' || g.status === 'halftime') && <span className="dot" style={{ background: '#F97316' }} />}{liveStatus(g)}</span>}
+        </CenterBar>
+        <div style={{ height: 14 }} />
         {g && (
           <div className="pills" role="group" aria-label="Filter plays">
             {filters.map(([k, label]) => <button key={k} aria-pressed={filter === k} onClick={() => setFilter(k)}>{label}</button>)}
@@ -70,7 +68,7 @@ export function PlaysPage({ id }: { id: string }) {
             }
             return (
               <div key={qn} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div className="q-head">{QNAME[qn - 1].toUpperCase()}</div>
+                <div className="q-head">{QNAME[qn - 1]}</div>
                 {qDrives.map((d) => (
                   <section className="card" key={d.key} aria-label={`${teamName(d.team)} drive: ${d.result}`}>
                     <div className="drive-head">
@@ -86,7 +84,7 @@ export function PlaysPage({ id }: { id: string }) {
               </div>
             );
           })}
-          {shown.length > 0 && <p className="note">The right column shows how each play moved {teamName(g.home.abbr, true)}' chance to win, in percentage points.</p>}
+          {shown.length > 0 && <p className="note fine">The right column shows how each play moved {teamName(g.home.abbr, true)}' chance to win, in percentage points.</p>}
         </main>
       )}
       <Nav active="games" />

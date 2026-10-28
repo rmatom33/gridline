@@ -4,9 +4,9 @@ import { data } from '../data/source';
 import { cached, useNow, useOnline, usePoll } from '../data/usePoll';
 import { href } from '../data/router';
 import { clockTime, countdown, etDateKey, shortDay } from '../shared/format';
-import { Badge, Card, ErrorCard, Footer, Icon, LinkButton, Nav, OfflineBanner, SampleBadge, Skeleton, teamName } from '../ui/parts';
-import { GameRow, isLive } from '../ui/GameRow';
-import { FinalRow, pollEvery } from './HomePage';
+import { Badge, Card, ErrorCard, Footer, Icon, LinkButton, Nav, OfflineBanner, SampleBadge, Skeleton, teamName, WeekChip } from '../ui/parts';
+import { GameCard, isLive } from '../ui/GameRow';
+import { pollEvery } from './HomePage';
 
 type Filter = 'all' | 'live' | 'upcoming' | 'final';
 
@@ -31,24 +31,26 @@ export function GamesPage() {
 
   const groups: { title: string; games: Game[]; key: Filter }[] = [
     { title: 'Live now', games: live, key: 'live' },
-    { title: 'Up next', games: upcoming, key: 'upcoming' },
-    { title: 'Final', games: finals, key: 'final' }
+    { title: upcoming.every((g) => etDateKey(g.kickoff) === today) ? 'Later today' : 'Coming up', games: upcoming, key: 'upcoming' },
+    { title: 'Finished', games: finals, key: 'final' }
   ];
-  const filters: [Filter, string][] = [['all', 'All'], ['live', `Live${live.length ? ` · ${live.length}` : ''}`], ['upcoming', 'Upcoming'], ['final', 'Final']];
+  const filters: [Filter, string][] = [['all', 'All'], ['live', `Live${live.length ? ` · ${live.length}` : ''}`], ['upcoming', 'Later'], ['final', 'Done']];
 
   return (
     <div className="app">
       <header className="top">
         <OfflineBanner online={online} stale={q.stale} updatedAt={q.updatedAt} retry={q.refresh} />
-        <div className="top-row">
-          <div className="brand">
-            <span className="title-lg">Games</span>
-            <span className="sub">{noGames ? new Date(now).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : sb ? `Week ${sb.week} · ${shortDay(now)}` : ''}</span>
-          </div>
+        <div className="top-row" style={{ paddingTop: 22 }}>
+          <span className="title-lg" style={{ fontSize: 34 }}>All games</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <SampleBadge />
-            <a className="btn tint" href={href.schedule} style={{ height: 40, width: 'auto', fontSize: 13 }}><Icon name="calendar" size={16} /> Schedule</a>
+            <a className="btn tint" href={href.schedule} style={{ height: 44, width: 'auto', fontSize: 15 }}><Icon name="calendar" size={18} /> Next week</a>
           </div>
+        </div>
+        <div style={{ padding: '0 20px 14px', display: 'flex' }}>
+          {noGames
+            ? <WeekChip left="TODAY" right={new Date(now).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} size="lg" />
+            : sb ? <WeekChip left={`WEEK ${sb.week}`} right={new Date(now).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'America/New_York' })} size="lg" /> : null}
         </div>
         {!noGames && (
           <div className="pills" role="group" aria-label="Filter games">
@@ -82,14 +84,16 @@ export function GamesPage() {
           </section>
 
           {finals.length > 0 && (
-            <Card title={`Week ${sb.week} results`} right={<span className="mono muted" style={{ fontSize: 12 }}>{finals.length} of {games.length}</span>}>
-              {finals.map((g) => <FinalRow key={g.id} g={g} />)}
-            </Card>
+            <section className="glist" aria-label={`Week ${sb.week} results`}>
+              <h2 className="sec-title">Week {sb.week} results</h2>
+              {finals.map((g) => <GameCard key={g.id} g={g} />)}
+            </section>
           )}
           {upcoming.length > 1 && (
-            <Card title="Later this week">
-              {upcoming.map((g) => <GameRow key={g.id} g={g} standings={st.data ?? undefined} showDay />)}
-            </Card>
+            <section className="glist" aria-label="Later this week">
+              <h2 className="sec-title">Later this week</h2>
+              {upcoming.map((g) => <GameCard key={g.id} g={g} standings={st.data ?? undefined} showDay />)}
+            </section>
           )}
           <Footer />
         </main>
@@ -98,9 +102,10 @@ export function GamesPage() {
       {sb && !noGames && (
         <main className="page">
           {groups.filter((grp) => (filter === 'all' || filter === grp.key)).map((grp) => grp.games.length ? (
-            <Card key={grp.key} title={grp.title} right={<span className="mono muted" style={{ fontSize: 12 }}>{grp.games.length}</span>}>
-              {grp.games.map((g) => <GameRow key={g.id} g={g} standings={st.data ?? undefined} showDay={grp.key === 'upcoming' && etDateKey(g.kickoff) !== today} />)}
-            </Card>
+            <section key={grp.key} className="glist" aria-label={grp.title}>
+              <h2 className="sec-title">{grp.title}</h2>
+              {grp.games.map((g) => <GameCard key={g.id} g={g} standings={st.data ?? undefined} showDay={grp.key === 'upcoming' && etDateKey(g.kickoff) !== today} />)}
+            </section>
           ) : filter === grp.key ? <Card key={grp.key} title={grp.title}><p className="empty">No {grp.title.toLowerCase()} games right now.</p></Card> : null)}
           <Footer />
         </main>

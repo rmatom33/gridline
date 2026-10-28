@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { data } from '../data/source';
 import { cached, usePoll } from '../data/usePoll';
-import { back, href } from '../data/router';
+import { href } from '../data/router';
 import { TEAMS } from '../shared/teams';
 import { record, shortDay } from '../shared/format';
-import { Badge, Icon, Nav, teamName } from '../ui/parts';
+import { Badge, CenterBar, GoArrow, Icon, Nav, teamName } from '../ui/parts';
 import { isLive, liveStatus } from '../ui/GameRow';
 
 // Recent teams are a per-device convenience only; the page works without storage.
@@ -46,13 +46,15 @@ export function SearchPage() {
   return (
     <div className="app">
       <header className="top">
-        <div className="top-row" style={{ gap: 10 }}>
+        <CenterBar fallback={href.home} backLabel="Back">
+          <span className="ttl" style={{ fontSize: 30 }}>Find a team</span>
+        </CenterBar>
+        <div style={{ padding: '16px 20px 22px', display: 'flex' }}>
           <label className="search-box" htmlFor="q">
-            <Icon name="search" />
+            <Icon name="search" size={24} />
             <span className="sr-only">Search teams and games</span>
-            <input id="q" ref={input} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Team, city or abbreviation" autoComplete="off" enterKeyHint="search" />
+            <input id="q" ref={input} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Team or city, like Kansas City" autoComplete="off" enterKeyHint="search" />
           </label>
-          <a href={href.home} onClick={back(href.home)} style={{ fontSize: 15, fontWeight: 600, padding: '12px 4px' }}>Cancel</a>
         </div>
       </header>
 
@@ -64,10 +66,10 @@ export function SearchPage() {
               <a className="row" key={t.abbr} href={href.team(t.abbr)}>
                 <Badge abbr={t.abbr} />
                 <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <span style={{ fontSize: 15, fontWeight: 600 }}><Highlight text={`${t.city} ${t.name}`} q={q.trim()} /></span>
+                  <span style={{ fontSize: 18, fontWeight: 700 }}><Highlight text={`${t.city} ${t.name}`} q={q.trim()} /></span>
                   <span className="sub">{meta(t.abbr)}</span>
                 </span>
-                <Icon name="next" size={16} />
+                <GoArrow />
               </a>
             )) : <p className="empty">No teams match “{q.trim()}”. Try a city, nickname or abbreviation like KC.</p>}
           </section>
