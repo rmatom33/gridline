@@ -156,12 +156,17 @@ async function checkFeeds() {
     ] : [])
   ].map(async ([name, path]) => [name, (await hit(path)).status] as const));
   const feeds: Record<string, number> = { 'Current week': tf.status, 'Scores this week': scores.status, ...Object.fromEntries(rest) };
+  // Field names only (no data) so lineup mapping problems can be diagnosed.
+  const dc = await hit('/scores/json/DepthCharts');
+  const first = Array.isArray(dc.json) ? dc.json[0] : null;
+  const depthChartShape = first ? { teams: dc.json.length, topLevelFields: Object.keys(first), offenseFields: Object.keys(first.Offense?.[0] ?? {}), samplePositions: [...new Set((first.Offense ?? []).map((p: any) => p.Position))].slice(0, 12) } : null;
   const body = {
     ok: tf.status === 200 && scores.status === 200,
     season, week,
     gamesThisWeek: games.length,
     oddsInScores: games.some((g: any) => g.PointSpread != null),
     feeds,
+    depthChartShape,
     meaning: '200 = working. 401/403 = not in your plan or wrong key. 404 = endpoint name differs on your plan. 0 = could not connect.',
     checkedAt: new Date().toISOString()
   };

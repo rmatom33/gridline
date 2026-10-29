@@ -3,7 +3,7 @@
   "short_name": "Gridline",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#F4F0F3",
-  "theme_color": "#1D1A39",
+  "background_color": "#F1F2F5",
+  "theme_color": "#141519",
   "icons": [{ "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml" }]
 }

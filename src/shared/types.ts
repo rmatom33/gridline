@@ -69,6 +69,8 @@ export interface Game {
   homeWinProb?: number;
   lastPlay?: string;
   overtime?: boolean;
+  /** TV / streaming network as the feed gives it, e.g. "CBS", "AMZN", "NBC/P". */
+  tv?: string | null;
 }
 
 export type PlayKind = 'pass' | 'run' | 'punt' | 'kick' | 'score' | 'turnover' | 'penalty' | 'timeout' | 'other';

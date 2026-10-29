@@ -207,7 +207,7 @@ function featuredGame(now: number): GameDetail {
     situation: final ? undefined : situation,
     odds: { spread: final ? KC_ODDS.spread : step >= 6 ? 4.5 : -1.5, total: 47.5, homeMoneyline: step >= 6 ? 210 : -125, awayMoneyline: step >= 6 ? -260 : 105, isLive: !final },
     weather: { dome: false, tempF: 48, windMph: 12, windDir: 'NW', description: 'Cloudy', precipPct: 10 },
-    venue: { city: 'Kansas City', state: 'MO' },
+    venue: { city: 'Kansas City', state: 'MO' }, tv: 'CBS',
     quarters: { away: [7, 7, 0, away - 14], home: [3, 14, 7, home - 24] },
     plays: [...livePlays, ...prePlays],
     winProbSeries: series,
@@ -248,7 +248,7 @@ interface Static {
   status: GameStatus; kickoffOffsetH: number;
   as?: number; hs?: number; quarter?: number; clock?: string; possession?: 'home' | 'away';
   situation?: Situation; odds: Odds; weather: Weather; city: string; state: string;
-  quarters?: { away: number[]; home: number[] }; overtime?: boolean;
+  quarters?: { away: number[]; home: number[] }; overtime?: boolean; tv?: string;
   plays?: Omit<Play, 'id' | 'homeWinProb'>[]; players?: PlayerLine[]; injuries?: Injury[];
 }
 
@@ -256,7 +256,7 @@ const WX = (tempF: number, windMph: number, description: string, precipPct = 0, 
 const DOME: Weather = { dome: true };
 
 const STATIC: Static[] = [
-  { id: 'phi-dal', away: 'PHI', home: 'DAL', aRec: '5-2', hRec: '3-4', status: 'live', kickoffOffsetH: -2.2, as: 17, hs: 13, quarter: 3, clock: '6:41', possession: 'away',
+  { id: 'phi-dal', tv: 'FOX', away: 'PHI', home: 'DAL', aRec: '5-2', hRec: '3-4', status: 'live', kickoffOffsetH: -2.2, as: 17, hs: 13, quarter: 3, clock: '6:41', possession: 'away',
     situation: { down: 3, distance: 2, yardsFromOwnGoal: 55, spot: 'DAL 45' }, odds: { spread: 1.5, total: 46.5, homeMoneyline: 110, awayMoneyline: -130, isLive: true },
     weather: DOME, city: 'Arlington', state: 'TX', quarters: { away: [7, 3, 7], home: [3, 10, 0] },
     plays: [{ quarter: 3, clock: '7:20', team: 'PHI', text: 'S. Okoro run right for 14 yards.', kind: 'run', yards: 14 },
@@ -264,28 +264,28 @@ const STATIC: Static[] = [
     players: [{ id: 'ferris', name: 'L. Ferris', team: 'PHI', pos: 'QB', passing: { cmp: 15, att: 22, yds: 201, td: 1, int: 0 }, rushing: { att: 4, yds: 22, td: 0 } },
       { id: 'abara', name: 'N. Abara', team: 'PHI', pos: 'WR', receiving: { rec: 5, yds: 94, td: 1 } },
       { id: 'okoro', name: 'S. Okoro', team: 'PHI', pos: 'RB', rushing: { att: 14, yds: 71, td: 1 } }] },
-  { id: 'sf-det', away: 'SF', home: 'DET', aRec: '4-3', hRec: '6-1', status: 'halftime', kickoffOffsetH: -1.6, as: 10, hs: 20, quarter: 2, clock: '0:00',
+  { id: 'sf-det', tv: 'CBS', away: 'SF', home: 'DET', aRec: '4-3', hRec: '6-1', status: 'halftime', kickoffOffsetH: -1.6, as: 10, hs: 20, quarter: 2, clock: '0:00',
     odds: { spread: -3.5, total: 50.5, homeMoneyline: -180, awayMoneyline: 150, isLive: true }, weather: DOME, city: 'Detroit', state: 'MI',
     quarters: { away: [7, 3], home: [10, 10] },
     plays: [{ quarter: 2, clock: '0:04', team: 'DET', text: 'R. Vance 48-yard field goal is good.', kind: 'score' }],
     players: [{ id: 'mercer', name: 'T. Mercer', team: 'DET', pos: 'RB', rushing: { att: 11, yds: 67, td: 1 }, receiving: { rec: 3, yds: 28, td: 0 } }] },
-  { id: 'bal-cin', away: 'BAL', home: 'CIN', aRec: '5-2', hRec: '3-4', status: 'final', kickoffOffsetH: -4.5, as: 27, hs: 24,
+  { id: 'bal-cin', tv: 'FOX', away: 'BAL', home: 'CIN', aRec: '5-2', hRec: '3-4', status: 'final', kickoffOffsetH: -4.5, as: 27, hs: 24,
     odds: { spread: 2.5, total: 49.5, homeMoneyline: 120, awayMoneyline: -140 }, weather: WX(52, 6, 'Partly cloudy'), city: 'Cincinnati', state: 'OH',
     quarters: { away: [7, 10, 3, 7], home: [3, 7, 7, 7] },
     plays: [{ quarter: 4, clock: '0:38', team: 'BAL', text: 'D. Kessler run up the middle for 9 yards, TOUCHDOWN.', kind: 'score' }],
     players: [{ id: 'kessler', name: 'D. Kessler', team: 'BAL', pos: 'QB', passing: { cmp: 20, att: 29, yds: 236, td: 1, int: 0 }, rushing: { att: 9, yds: 72, td: 2 } }] },
-  { id: 'gb-min', away: 'GB', home: 'MIN', aRec: '4-3', hRec: '4-3', status: 'final', kickoffOffsetH: -4.5, as: 31, hs: 28, overtime: true,
+  { id: 'gb-min', tv: 'FOX', away: 'GB', home: 'MIN', aRec: '4-3', hRec: '4-3', status: 'final', kickoffOffsetH: -4.5, as: 31, hs: 28, overtime: true,
     odds: { spread: -1, total: 45.5, homeMoneyline: -115, awayMoneyline: -105 }, weather: DOME, city: 'Minneapolis', state: 'MN',
     quarters: { away: [7, 7, 7, 7, 3], home: [0, 14, 7, 7, 0] },
     plays: [{ quarter: 5, clock: '4:12', team: 'GB', text: 'E. Strand 33-yard field goal is good. GB wins.', kind: 'score' }],
     players: [{ id: 'ruiz', name: 'A. Ruiz', team: 'GB', pos: 'WR', receiving: { rec: 8, yds: 124, td: 1 } },
       { id: 'strand', name: 'E. Strand', team: 'GB', pos: 'K' }] },
-  { id: 'mia-nyj', away: 'MIA', home: 'NYJ', aRec: '2-5', hRec: '3-4', status: 'scheduled', kickoffOffsetH: 2.08,
+  { id: 'mia-nyj', tv: 'CBS', away: 'MIA', home: 'NYJ', aRec: '2-5', hRec: '3-4', status: 'scheduled', kickoffOffsetH: 2.08,
     odds: { spread: 3.5, total: 42, homeMoneyline: 150, awayMoneyline: -175 }, weather: WX(61, 8, 'Clear', 0, 'SW'), city: 'East Rutherford', state: 'NJ',
     injuries: [{ team: 'MIA', name: 'J. Whitfield', pos: 'RB', detail: 'Ankle', status: 'Questionable' },
       { team: 'MIA', name: 'B. Lindell', pos: 'WR', detail: 'Groin', status: 'Questionable' },
       { team: 'NYJ', name: 'R. Castillo', pos: 'LB', detail: 'Knee', status: 'Out' }] },
-  { id: 'lar-sea', away: 'LAR', home: 'SEA', aRec: '4-3', hRec: '4-3', status: 'scheduled', kickoffOffsetH: 5.95,
+  { id: 'lar-sea', tv: 'NBC', away: 'LAR', home: 'SEA', aRec: '4-3', hRec: '4-3', status: 'scheduled', kickoffOffsetH: 5.95,
     odds: { spread: -1, total: 45, homeMoneyline: -115, awayMoneyline: -105 }, weather: WX(53, 11, 'Rain likely', 40, 'S'), city: 'Seattle', state: 'WA' }
 ];
 
@@ -297,7 +297,7 @@ function staticGame(s: Static, now: number): GameDetail {
     away: { abbr: s.away, score: s.as ?? null, record: s.aRec, timeouts: 3 },
     home: { abbr: s.home, score: s.hs ?? null, record: s.hRec, timeouts: 3 },
     possession: s.possession ?? null, situation: s.situation, odds: s.odds, weather: s.weather,
-    venue: { city: s.city, state: s.state }, overtime: s.overtime,
+    venue: { city: s.city, state: s.state }, overtime: s.overtime, tv: s.tv ?? 'CBS',
     quarters: s.quarters ?? { away: [], home: [] },
     plays: (s.plays ?? []).map((p, i) => ({ ...p, id: `${s.id}-${i}` })),
     winProbSeries: [], players: s.players ?? [], teamStats: [],
@@ -373,6 +373,7 @@ function nextWeekGames(now: number): Game[] {
     quarter: null, clock: null, possession: null,
     away: { abbr: a, score: null, record: ar }, home: { abbr: h, score: null, record: hr },
     odds: { spread, total, homeMoneyline: null, awayMoneyline: null }, weather,
+    tv: (['AMZN', 'CBS/P', 'FOX', 'NBC/P', 'ESPN'] as const)[i % 5],
     homeWinProb: pregameHomeWinProbability(spread)
   }));
 }

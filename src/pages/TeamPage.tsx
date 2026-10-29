@@ -5,8 +5,8 @@ import { href } from '../data/router';
 import { team, TEAMS } from '../shared/teams';
 import { clockTime, kickoffDay, record, streakText } from '../shared/format';
 import { ordinalRank, winPct } from '../shared/teamdetail';
-import { Badge, Card, CenterBar, ErrorCard, Footer, GoArrow, Icon, InjuryRows, Nav, OfflineBanner, SampleBadge, Skeleton, teamName } from '../ui/parts';
-import { favoredText, liveStatus } from '../ui/GameRow';
+import { Badge, Card, CenterBar, ErrorCard, Footer, GoArrow, Icon, InjuryRows, Nav, OfflineBanner, Skeleton, teamName, WatchOn } from '../ui/parts';
+import { favoredText, GameCard } from '../ui/GameRow';
 import { rememberTeam } from './SearchPage';
 
 export function TeamPage({ abbr }: { abbr: string }) {
@@ -43,7 +43,6 @@ export function TeamPage({ abbr }: { abbr: string }) {
           <Badge abbr={abbr} size={84} />
           <h1>{known ? `${t.city} ${t.name}` : abbr}</h1>
           <span className="sub" style={{ fontSize: 16 }}>{t.conf} {t.div}{d?.divRank ? ` · ${ordinalRank(d.divRank)} in division` : ''}{s?.seed ? ` · playoff place ${s.seed}` : ''}</span>
-          <SampleBadge />
         </div>
         <div style={{ padding: '18px 20px 14px' }}>
           {s && (
@@ -62,7 +61,7 @@ export function TeamPage({ abbr }: { abbr: string }) {
 
       {d && (
         <main className="page">
-          {lg && <LiveCard lg={lg} stale={q.stale} />}
+          {lg && <GameCard g={lg} />}
 
           {ng && (
             <section className="card pad" aria-label="Next game" style={{ gap: 16 }}>
@@ -79,6 +78,7 @@ export function TeamPage({ abbr }: { abbr: string }) {
                   <span><span className="k"><Icon name="where" size={18} stroke={2.2} />Where</span><b>{ng.home.abbr === abbr ? 'At home' : `At ${team(ng.home.abbr).city}`}</b></span>
                   <span><span className="k"><Icon name="trend" size={18} stroke={2.2} />Favored</span><b>{favoredText(ng)?.replace(' favored by ', ' by ') ?? 'No line yet'}</b></span>
                 </span>
+                <WatchOn tv={ng.tv} />
               </a>
             </section>
           )}
@@ -138,46 +138,3 @@ export function TeamPage({ abbr }: { abbr: string }) {
 }
 
 const fmt = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0');
-
-function LiveCard({ lg, stale }: { lg: import('../shared/types').Game; stale: boolean }) {
-  const as = lg.away.score ?? 0, hs = lg.home.score ?? 0;
-  const hp = lg.homeWinProb ?? 0.5;
-  const q = lg.status === 'halftime' ? 'HALFTIME' : lg.quarter && lg.quarter >= 5 ? 'OVERTIME' : `${['1ST', '2ND', '3RD', '4TH'][(lg.quarter ?? 1) - 1]} QUARTER`;
-  return (
-    <a className="livecard" href={href.game(lg.id)} aria-label={`Playing now: ${teamName(lg.away.abbr)} ${as}, ${teamName(lg.home.abbr)} ${hs}, ${liveStatus(lg)}. Follow this game`}>
-      <span className="sbline">
-        <span className="lvp"><span className="dot" style={{ background: '#FFFFFF' }} />LIVE</span>
-        <span className="qq">{q}</span>
-        {lg.status === 'live' && lg.clock && <><span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: 3, background: '#6B6690' }} /><span style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}><span className="tt">{lg.clock}</span><span style={{ fontSize: 13, fontWeight: 700, color: 'var(--on-navy-muted)' }}>left</span></span></>}
-      </span>
-      <span style={{ padding: '16px 20px 6px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {(['away', 'home'] as const).map((side) => {
-          const mine = side === 'away' ? as : hs, theirs = side === 'away' ? hs : as;
-          return (
-            <span key={side} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Badge abbr={lg[side].abbr} size={40} />
-              <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, fontSize: 20, fontWeight: mine >= theirs ? 800 : 700, color: mine >= theirs ? 'var(--text)' : 'var(--text3)' }}>
-                {teamName(lg[side].abbr)}
-                {lg.possession === side && lg.status === 'live' && (
-                  <svg aria-label="Has the ball" width="22" height="22" viewBox="0 0 24 24"><g transform="rotate(-35 12 12)"><ellipse cx="12" cy="12" rx="9" ry="5.4" fill="#8B4513" stroke="#4A230A" strokeWidth="1.4" /><path d="M8.5 12h7M10 10.6v2.8M12 10.6v2.8M14 10.6v2.8" stroke="#FFFFFF" strokeWidth="1.3" strokeLinecap="round" /></g></svg>
-                )}
-              </span>
-              <span className={`sbox ${mine >= theirs ? 'lead' : ''}`}>{mine}</span>
-            </span>
-          );
-        })}
-      </span>
-      {!stale && lg.homeWinProb != null && (
-        <span style={{ padding: '10px 20px 0', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700, color: 'var(--muted)' }}>
-            <span>{teamName(lg.away.abbr)} {Math.round((1 - hp) * 100)}%</span><span style={{ color: 'var(--text)' }}>{teamName(lg.home.abbr)} {Math.round(hp * 100)}% to win</span>
-          </span>
-          <span aria-hidden="true" style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', gap: 3 }}>
-            <span style={{ width: `${(1 - hp) * 100}%`, background: team(lg.away.abbr).color }} /><span style={{ flex: 1, background: team(lg.home.abbr).color }} />
-          </span>
-        </span>
-      )}
-      <span className="btn primary" style={{ margin: '16px 20px 20px', width: 'auto', minHeight: 52 }}>Follow this game <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M5 12h12M13 6l6 6-6 6" /></svg></span>
-    </a>
-  );
-}

@@ -1,145 +1,86 @@
 import { useState } from 'react';
 import type { Game } from '../shared/types';
 import { data } from '../data/source';
-import { cached, useNow, useOnline, usePoll } from '../data/usePoll';
-import { href } from '../data/router';
-import { clockTime, countdown, etDateKey, shortDay } from '../shared/format';
-import { Badge, Card, ErrorCard, Footer, Icon, LinkButton, Nav, OfflineBanner, SampleBadge, Skeleton, teamName, WeekChip } from '../ui/parts';
-import { GameCard, isLive } from '../ui/GameRow';
+import { cached, useOnline, usePoll } from '../data/usePoll';
+import { etDateKey } from '../shared/format';
+import { ErrorCard, Footer, Icon, Nav, OfflineBanner, Skeleton, TopBar } from '../ui/parts';
+import { GameCard } from '../ui/GameRow';
+import { TEAMS } from '../shared/teams';
 import { pollEvery } from './HomePage';
 
-type Filter = 'all' | 'live' | 'upcoming' | 'final';
+const ET = 'America/New_York';
+const dayTitle = (iso: string) => new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: ET });
 
+/** Games: pick any week; games grouped by day with kickoff, TV, odds and weather. */
 export function GamesPage() {
   const online = useOnline();
-  const now = useNow();
-  const [filter, setFilter] = useState<Filter>('all');
-  const q = usePoll(() => data.scoreboard(), pollEvery, []);
+  const sbq = usePoll(() => data.scoreboard(), pollEvery, []);
   const st = usePoll(() => cached('standings', () => data.standings()), 0, []);
-  const sb = q.data;
-  const games = sb?.games ?? [];
-  const today = etDateKey(now);
-  const anyToday = games.some((g) => isLive(g) || etDateKey(g.kickoff) === today);
+  const current = sbq.data?.week;
+  const [picked, setPicked] = useState<number | null>(null);
+  const week = picked ?? current;
+  const other = week != null && week !== current;
+  const scq = usePoll(() => (other && week ? cached(`schedule-${week}`, () => data.schedule(week), 5 * 60_000) : Promise.resolve(null)), 0, [other ? week : 0]);
+  const lastWeek = Math.max(18, ...(scq.data?.weeks ?? []).filter((w) => w <= 22));
+  const games: Game[] | undefined = other ? scq.data?.games : sbq.data?.games;
+  const loading = !games && !(other ? scq.error : sbq.error);
+  const error = other ? scq.error : sbq.error;
+  const season = sbq.data?.season ?? new Date().getFullYear();
 
-  const live = games.filter(isLive);
-  const upcoming = games.filter((g) => g.status === 'scheduled' || g.status === 'postponed').sort((a, b) => a.kickoff.localeCompare(b.kickoff));
-  const finals = games.filter((g) => g.status === 'final').sort((a, b) => b.kickoff.localeCompare(a.kickoff));
+  const byDay = new Map<string, Game[]>();
+  for (const g of (games ?? []).slice().sort((a, b) => a.kickoff.localeCompare(b.kickoff))) {
+    const k = etDateKey(g.kickoff);
+    byDay.set(k, [...(byDay.get(k) ?? []), g]);
+  }
+  const playing = new Set((games ?? []).flatMap((g) => [g.away.abbr, g.home.abbr]));
+  const byes = games?.length ? Object.keys(TEAMS).filter((t) => !playing.has(t)).map((t) => TEAMS[t].name) : [];
 
-  // "No games today": show the next kickoff and this week's results.
-  const noGames = sb && !anyToday;
-  const next = useNextKickoff(noGames ? upcoming[0] : undefined, sb?.week);
-
-  const groups: { title: string; games: Game[]; key: Filter }[] = [
-    { title: 'Live now', games: live, key: 'live' },
-    { title: upcoming.every((g) => etDateKey(g.kickoff) === today) ? 'Later today' : 'Coming up', games: upcoming, key: 'upcoming' },
-    { title: 'Finished', games: finals, key: 'final' }
-  ];
-  const filters: [Filter, string][] = [['all', 'All'], ['live', `Live${live.length ? ` · ${live.length}` : ''}`], ['upcoming', 'Later'], ['final', 'Done']];
+  // Three whole weeks always fit: the chosen week in the middle where possible.
+  const mid = week ? Math.min(Math.max(week, 2), lastWeek - 1) : 2;
+  const shown = [mid - 1, mid, mid + 1];
+  const go = (n: number) => setPicked(Math.min(lastWeek, Math.max(1, n)));
+  const updated = other ? scq.updatedAt : sbq.updatedAt;
 
   return (
     <div className="app">
       <header className="top">
-        <OfflineBanner online={online} stale={q.stale} updatedAt={q.updatedAt} retry={q.refresh} />
-        <div className="top-row" style={{ paddingTop: 22 }}>
-          <span className="title-lg" style={{ fontSize: 34 }}>All games</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <SampleBadge />
-            <a className="btn tint" href={href.schedule} style={{ height: 44, width: 'auto', fontSize: 15 }}><Icon name="calendar" size={18} /> Next week</a>
-          </div>
+        <OfflineBanner online={online} stale={sbq.stale} updatedAt={sbq.updatedAt} retry={sbq.refresh} />
+        <TopBar />
+        <div className="mhero">
+          <span className="over">{season} · Regular season</span>
+          <h1>Games</h1>
+          <p>Kickoff times, TV, favorites and weather for every game. Pick a week to jump to it.</p>
         </div>
-        <div style={{ padding: '0 20px 14px', display: 'flex' }}>
-          {noGames
-            ? <WeekChip left="TODAY" right={new Date(now).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} size="lg" />
-            : sb ? <WeekChip left={`WEEK ${sb.week}`} right={new Date(now).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'America/New_York' })} size="lg" /> : null}
-        </div>
-        {!noGames && (
-          <div className="pills" role="group" aria-label="Filter games">
-            {filters.map(([k, label]) => <button key={k} aria-pressed={filter === k} onClick={() => setFilter(k)}>{label}</button>)}
-          </div>
+        {week != null && (
+          <nav className="wkpick" aria-label="Choose a week">
+            <button className="arr" onClick={() => go(week - 1)} disabled={week <= 1} aria-label="Earlier week"><Icon name="back" size={20} stroke={2.6} /></button>
+            {shown.map((n) => (
+              <button key={n} aria-current={n === week ? 'true' : undefined} onClick={() => go(n)}>WEEK {n}</button>
+            ))}
+            <button className="arr" onClick={() => go(week + 1)} disabled={week >= lastWeek} aria-label="Later week"><Icon name="next" size={20} stroke={2.6} /></button>
+          </nav>
         )}
       </header>
 
-      {!sb && q.error && <main className="page"><ErrorCard error={q.error} retry={q.refresh} /></main>}
-      {!sb && !q.error && <Skeleton />}
+      {error && !games && <main className="page"><ErrorCard error={error} retry={other ? scq.refresh : sbq.refresh} /></main>}
+      {loading && <Skeleton />}
 
-      {sb && noGames && (
+      {games && week != null && (
         <main className="page">
-          <section className="card pad" aria-label="No games today" style={{ alignItems: 'center', textAlign: 'center', gap: 10, padding: '24px 16px' }}>
-            <span style={{ width: 52, height: 52, borderRadius: 26, background: 'var(--tint-bg)', color: 'var(--tint-fg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="calendar" size={24} /></span>
-            <span style={{ fontSize: 20, fontWeight: 700 }}>No games today</span>
-            {next ? (
-              <>
-                <span className="sub" style={{ fontSize: 14 }}>Next kickoff is {shortDay(next.kickoff)}.</span>
-                <a href={href.game(next.id)} style={{ width: '100%', background: 'var(--panel2)', borderRadius: 14, padding: 14, display: 'flex', flexDirection: 'column', gap: 12, color: 'var(--text)' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
-                    <Badge abbr={next.away.abbr} size={30} />
-                    <span style={{ fontWeight: 700, fontSize: 18, whiteSpace: 'nowrap' }}>{teamName(next.away.abbr)} at {teamName(next.home.abbr)}</span>
-                    <Badge abbr={next.home.abbr} size={30} />
-                  </span>
-                  <Countdown iso={next.kickoff} now={now} />
-                </a>
-              </>
-            ) : <span className="sub" style={{ fontSize: 14 }}>Check the schedule for upcoming games.</span>}
-            <LinkButton to={href.schedule} kind="primary">See the schedule</LinkButton>
-          </section>
-
-          {finals.length > 0 && (
-            <section className="glist" aria-label={`Week ${sb.week} results`}>
-              <h2 className="sec-title">Week {sb.week} results</h2>
-              {finals.map((g) => <GameCard key={g.id} g={g} />)}
+          <h2 className="wk-h">Week {week}{week === current ? ' · this week' : ''}</h2>
+          {!games.length && <p className="byes">No games scheduled for this week yet.</p>}
+          {[...byDay.values()].map((list) => (
+            <section key={list[0].id} className="glist" aria-label={dayTitle(list[0].kickoff)}>
+              <div className="dayh"><b>{dayTitle(list[0].kickoff)}</b><span>{list.length} {list.length === 1 ? 'game' : 'games'}</span><i /></div>
+              {list.map((g) => <GameCard key={g.id} g={g} standings={st.data ?? undefined} />)}
             </section>
-          )}
-          {upcoming.length > 1 && (
-            <section className="glist" aria-label="Later this week">
-              <h2 className="sec-title">Later this week</h2>
-              {upcoming.map((g) => <GameCard key={g.id} g={g} standings={st.data ?? undefined} showDay />)}
-            </section>
-          )}
-          <Footer />
-        </main>
-      )}
-
-      {sb && !noGames && (
-        <main className="page">
-          {groups.filter((grp) => (filter === 'all' || filter === grp.key)).map((grp) => grp.games.length ? (
-            <section key={grp.key} className="glist" aria-label={grp.title}>
-              <h2 className="sec-title">{grp.title}</h2>
-              {grp.games.map((g) => <GameCard key={g.id} g={g} standings={st.data ?? undefined} showDay={grp.key === 'upcoming' && etDateKey(g.kickoff) !== today} />)}
-            </section>
-          ) : filter === grp.key ? <Card key={grp.key} title={grp.title}><p className="empty">No {grp.title.toLowerCase()} games right now.</p></Card> : null)}
+          ))}
+          {byes.length > 0 && byes.length < 32 && <p className="byes">On bye this week: {byes.join(', ')}</p>}
+          {updated && <p className="updated">Updated {new Date(updated).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}</p>}
           <Footer />
         </main>
       )}
       <Nav active="games" />
-    </div>
-  );
-}
-
-/** Next scheduled game: this week's first upcoming game, or next week's first game. */
-function useNextKickoff(thisWeek: Game | undefined, week: number | undefined): Game | undefined {
-  const nw = usePoll(() => (thisWeek || !week ? Promise.resolve(null) : cached(`schedule-${week + 1}`, () => data.schedule(week + 1))), 0, [thisWeek?.id, week]);
-  if (thisWeek) return thisWeek;
-  return nw.data?.games.filter((g) => g.status === 'scheduled').sort((a, b) => a.kickoff.localeCompare(b.kickoff))[0];
-}
-
-export function Countdown({ iso, now }: { iso: string; now: number }) {
-  const c = countdown(iso, now);
-  const cells: [string, string][] = c.days > 0
-    ? [[String(c.days), c.days === 1 ? 'day' : 'days'], [String(c.hours), c.hours === 1 ? 'hour' : 'hours']]
-    : [[String(c.hours), c.hours === 1 ? 'hour' : 'hours'], [String(c.mins).padStart(2, '0'), 'minutes']];
-  const t = clockTime(iso);
-  const day = new Date(iso).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/New_York' }).toUpperCase();
-  return (
-    <div className="ngkick" role="timer" aria-label={`Kickoff in ${cells.map(([v, k]) => `${v} ${k}`).join(' ')}, ${day} at ${t}`}>
-      <div className="cd">
-        <span className="cap">KICKOFF IN</span>
-        <span className="nums">
-          <span className="n"><b>{cells[0][0]}</b><span>{cells[0][1]}</span></span>
-          <span className="colon" aria-hidden="true">:</span>
-          <span className="n"><b>{cells[1][0]}</b><span>{cells[1][1]}</span></span>
-        </span>
-      </div>
-      <div className="ko"><small>{day}</small><b>{t.replace(/ [AP]M$/, '')}</b><span>{t.slice(-2)} ET</span></div>
     </div>
   );
 }

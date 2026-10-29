@@ -119,7 +119,7 @@ export function createSportsDataIOSource(opts: SdioOptions): DataSource {
       players,
       teamStats: mapTeamStats(box?.TeamGames ?? [], base),
       injuries: mapInjuries(injuries, [base.away.abbr, base.home.abbr]),
-      lineups: { away: mapLineup(depth, base.away.abbr, injuries), home: mapLineup(depth, base.home.abbr, injuries) },
+      lineups: { away: mapLineup(depth, base.away.abbr, score.AwayTeamID, injuries), home: mapLineup(depth, base.home.abbr, score.HomeTeamID, injuries) },
       pregameHomeWinProb: pregameHomeWinProbability(base.odds?.spread ?? null)
     };
     detail.summary = buildSummary(detail);
@@ -246,6 +246,7 @@ function mapScore(s: J): Game {
     },
     venue: { name: stadium.Name, city: stadium.City, state: stadium.State },
     lastPlay: s.LastPlay ?? undefined,
+    tv: s.Channel ?? null,
     overtime: String(s.Status ?? '').includes('OT') || s.Quarter === 'OT'
   };
   g.homeWinProb = gameWinProbability(g);
@@ -352,9 +353,16 @@ function mapInjuries(raw: J[], teams: string[]): Injury[] {
     .map((r) => ({ team: normalizeAbbr(r.Team), name: shortName(r.Name), pos: String(r.Position ?? ''), detail: r.BodyPart ?? undefined, status: injuryStatus(r.Status) }));
 }
 
-function mapLineup(depth: J[], abbr: string, injuries: J[]): LineupSlot[] {
-  // VERIFY: DepthCharts returns [{ Team, Offense: [{ Position, Name, DepthOrder }], Defense: [...] }]
-  const d = depth.find((t) => normalizeAbbr(t.Team) === abbr);
+const LINEUP_POS: Record<string, string> = { QB: 'QB', RB: 'RB', HB: 'RB', FB: 'RB', WR: 'WR', LWR: 'WR', RWR: 'WR', SWR: 'WR', SLWR: 'WR', TE: 'TE', K: 'K', PK: 'K' };
+const lineupPos = (p: unknown) => LINEUP_POS[String(p ?? '').toUpperCase().replace(/\d/g, '')] ?? null;
+
+function mapLineup(depth: J[], abbr: string, teamId: unknown, injuries: J[]): LineupSlot[] {
+  // DepthCharts returns one entry per team: { TeamID, Offense: [{ Name, Position, DepthOrder, Team? }], Defense, SpecialTeams }.
+  // Some plans omit the team abbreviation at the top level, so match by TeamID or by the players' own Team field too.
+  const d = depth.find((t) =>
+    (t.Team && normalizeAbbr(t.Team) === abbr) ||
+    (teamId != null && t.TeamID != null && String(t.TeamID) === String(teamId)) ||
+    (Array.isArray(t.Offense) && t.Offense.some((p: J) => p.Team && normalizeAbbr(p.Team) === abbr)));
   if (!d) return [];
   const want = ['QB', 'RB', 'WR', 'WR', 'WR', 'TE', 'K'];
   const used = new Set<string>();
@@ -362,8 +370,8 @@ function mapLineup(depth: J[], abbr: string, injuries: J[]): LineupSlot[] {
   const all: J[] = [...(d.Offense ?? []), ...(d.SpecialTeams ?? [])];
   for (const pos of want) {
     const pick = all
-      .filter((p) => String(p.Position).replace(/\d/, '') === pos && !used.has(p.Name))
-      .sort((x, y) => Number(x.DepthOrder) - Number(y.DepthOrder))[0];
+      .filter((p) => lineupPos(p.Position) === pos && p.Name && !used.has(p.Name))
+      .sort((x, y) => Number(x.DepthOrder ?? 99) - Number(y.DepthOrder ?? 99))[0];
     if (!pick) continue;
     used.add(pick.Name);
     const inj = injuries.find((i) => i.Name === pick.Name);

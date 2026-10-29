@@ -1,9 +1,9 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { Game, Injury, InjuryStatus, Standing, TeamStatRow, WinProbPoint } from '../shared/types';
 import { team } from '../shared/teams';
 import { back, href } from '../data/router';
 import { IS_SAMPLE } from '../data/source';
-import { agoText, downText } from '../shared/format';
+import { agoText, countdown, downText, networkName } from '../shared/format';
 
 // ---------- Icons ----------
 const ICONS = {
@@ -19,7 +19,12 @@ const ICONS = {
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
   trend: <><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></>,
   star: <path d="M12 3l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.4l-5.7 3.1 1.2-6.4L2.8 9.7l6.4-.8z" />,
-  where: <path d="M4 11l8-7 8 7v9H4z" />
+  where: <path d="M4 11l8-7 8 7v9H4z" />,
+  tv: <><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M8 21h8M9 3l3 3 3-3" /></>,
+  bell: <><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" /></>,
+  wind: <path d="M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h8" />,
+  drop: <path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z" />,
+  temp: <path d="M10 14V4a2 2 0 1 1 4 0v10a4 4 0 1 1-4 0z" />
 };
 export type IconName = keyof typeof ICONS;
 
@@ -97,33 +102,72 @@ export function SampleBadge() {
   return IS_SAMPLE ? <span className="sample-pill" title="Fictional sample data replaying on a loop">SAMPLE</span> : null;
 }
 
+export function Logo({ to = href.home }: { to?: string }) {
+  return (
+    <a className="logo" href={to} aria-label="Gridline home">
+      <span className="mk" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.6" strokeLinecap="round"><path d="M5 6h14M5 12h14M5 18h14" /></svg></span>
+      <span className="wm">GRID<span>LINE</span></span>
+    </a>
+  );
+}
+
+export function SearchButton() {
+  return <a className="sq-btn" href={href.search} aria-label="Search teams and games"><Icon name="search" size={20} stroke={2.2} /></a>;
+}
+
+/** Dark top bar on every page: (back) + logo on the left, search (or a custom button) on the right. */
+export function TopBar({ fallback, backLabel = 'Back', right }: { fallback?: string; backLabel?: string; right?: ReactNode }) {
+  return (
+    <div className="mbar">
+      <span className="l">
+        {fallback && <a className="back-btn" href={fallback} onClick={back(fallback)} aria-label={backLabel}><Icon name="back" size={22} stroke={2.6} /></a>}
+        <Logo />
+        <SampleBadge />
+      </span>
+      {right ?? <SearchButton />}
+    </div>
+  );
+}
+
+/** "Watch on Prime Video": the network always in full, with emphasis. */
+export function WatchOn({ tv, label = 'Watch on', dark = false, big = false, style }: { tv?: string | null; label?: string; dark?: boolean; big?: boolean; style?: CSSProperties }) {
+  const name = networkName(tv);
+  if (!name) return null;
+  return (
+    <div className={`watch${dark ? ' dark' : ''}${big ? ' big' : ''}`} style={style} aria-label={`${label} ${name}`}>
+      <svg aria-hidden="true" width={big ? 20 : 18} height={big ? 20 : 18} viewBox="0 0 24 24" fill="none" stroke="#F26722" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">{ICONS.tv}</svg>
+      <span>{label}</span><b>{name}</b>
+    </div>
+  );
+}
+
+/** Hours / minutes / seconds boxes to kickoff (days when it's further off). */
+export function Countdown3({ iso, now }: { iso: string; now: number }) {
+  const c = countdown(iso, now);
+  const secs = Math.max(0, Math.floor((Date.parse(iso) - now) / 1000) % 60);
+  const cells: [number, string][] = c.days > 0 ? [[c.days, c.days === 1 ? 'DAY' : 'DAYS'], [c.hours, 'HOURS'], [c.mins, 'MIN']] : [[c.hours, 'HOURS'], [c.mins, 'MIN'], [secs, 'SEC']];
+  return (
+    <div className="cd3" role="timer" aria-label={`Kickoff in ${cells.map(([v, k]) => `${v} ${k.toLowerCase()}`).join(' ')}`}>
+      {cells.map(([v, k]) => <div key={k}><b>{v}</b><span>{k}</span></div>)}
+    </div>
+  );
+}
+
+/** "14% Bills ······ Chiefs 86%" plus the two-color bar. */
+export function WinNums({ g, homeProb }: { g: Game; homeProb: number }) {
+  const hp = Math.round(homeProb * 100), ap = 100 - hp;
+  return (
+    <div>
+      <div className="wpnums"><span><b>{ap}%</b> <span>{teamName(g.away.abbr)}</span></span><span><span>{teamName(g.home.abbr)}</span> <b>{hp}%</b></span></div>
+      <WPBar homeProb={homeProb} g={g} />
+    </div>
+  );
+}
+
 const NAV_ICONS = {
-  home: (
-    <>
-      <path d="M3 13c0-3 5.8-6 13-6s13 3 13 6v9c0 3-5.8 6-13 6S3 25 3 22z" fill="#6B6690" />
-      <path d="M3 13c0 3 5.8 6 13 6s13-3 13-6" fill="none" stroke="#3E3A63" strokeWidth="1.4" />
-      <ellipse cx="16" cy="16.5" rx="9" ry="4.2" fill="#22A447" />
-      <path d="M16 12.4v8.2M11 13.2v6.6M21 13.2v6.6" stroke="#FFFFFF" strokeWidth="1" opacity=".8" />
-      <path d="M6 6V3M26 6V3" stroke="#3E3A63" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="6" cy="3" r="1.8" fill="#FACC15" /><circle cx="26" cy="3" r="1.8" fill="#FACC15" />
-    </>
-  ),
-  games: (
-    <g transform="rotate(-35 16 16)">
-      <ellipse cx="16" cy="16" rx="13" ry="7.8" fill="#8B4513" stroke="#4A230A" strokeWidth="1.6" />
-      <path d="M6 12.5q10-3.5 20 0M6 19.5q10 3.5 20 0" fill="none" stroke="#FFFFFF" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M11.5 16h9" stroke="#FFFFFF" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M13.5 14.2v3.6M16 14.2v3.6M18.5 14.2v3.6" stroke="#FFFFFF" strokeWidth="1.3" strokeLinecap="round" />
-    </g>
-  ),
-  standings: (
-    <>
-      <path d="M9 4h14v7a7 7 0 0 1-14 0z" fill="#FACC15" stroke="#B45309" strokeWidth="1.5" strokeLinejoin="round" />
-      <path d="M9 6H5v2a5 5 0 0 0 5 5M23 6h4v2a5 5 0 0 1-5 5" fill="none" stroke="#B45309" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M16 18v5" stroke="#B45309" strokeWidth="2.2" />
-      <path d="M10 28h12l-1.5-5h-9z" fill="#C2410C" stroke="#7C2D12" strokeWidth="1.4" strokeLinejoin="round" />
-    </>
-  )
+  home: <path d="M4 11l8-7 8 7v9H4z" />,
+  games: ICONS.games,
+  standings: ICONS.standings
 };
 
 export function Nav({ active }: { active: 'home' | 'games' | 'standings' | 'none' }) {
@@ -133,16 +177,22 @@ export function Nav({ active }: { active: 'home' | 'games' | 'standings' | 'none
     { key: 'standings', label: 'Standings', to: href.standings() }
   ] as const;
   return (
-    <nav className="nav" aria-label="Main">
-      <div className="nav-inner">
-        {items.map((it) => (
-          <a key={it.key} href={it.to} aria-current={active === it.key ? 'page' : undefined}>
-            <svg aria-hidden="true" width="30" height="30" viewBox="0 0 32 32">{NAV_ICONS[it.key]}</svg>
-            {it.label}
-          </a>
-        ))}
-      </div>
-    </nav>
+    <>
+      <footer className="site-footer">
+        <Logo />
+        <p>Gridline is an independent fan site. It is not affiliated with, endorsed by or sponsored by the NFL, its teams or any broadcaster. Team names are used only to identify the teams playing. {IS_SAMPLE ? 'This preview shows made-up games and players.' : 'Live scores and stats are provided by SportsData.io.'}</p>
+      </footer>
+      <nav className="nav" aria-label="Main">
+        <div className="nav-inner">
+          {items.map((it) => (
+            <a key={it.key} href={it.to} aria-current={active === it.key ? 'page' : undefined}>
+              <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{NAV_ICONS[it.key]}</svg>
+              {it.label}
+            </a>
+          ))}
+        </div>
+      </nav>
+    </>
   );
 }
 
@@ -165,21 +215,20 @@ export function GoArrow() {
   );
 }
 
-/** Centered header row: back button | title (+ extra lines) | right slot or spacer. */
+/** Top bar with a back button, then a centered title block. */
 export function CenterBar({ fallback, backLabel, right, children }: { fallback: string; backLabel?: string; right?: ReactNode; children: ReactNode }) {
   return (
-    <header className="center-bar">
-      <BackButton fallback={fallback} label={backLabel} />
-      <div className="mid">{children}</div>
-      {right ?? <span aria-hidden="true" />}
-    </header>
+    <>
+      <TopBar fallback={fallback} backLabel={backLabel} right={right} />
+      <div className="cb-mid">{children}</div>
+    </>
   );
 }
 
 export function Footer({ odds = true }: { odds?: boolean }) {
   return (
     <p className="footer-note fine">
-      {odds ? 'Odds for information only. ' : ''}Chance to win is calculated by Gridline. {IS_SAMPLE ? 'Fictional sample data. ' : 'Data under licence from our data providers. '}Not affiliated with the NFL.
+      {odds ? 'Odds for information only. 21+. Gambling problem? Call 1-800-GAMBLER. ' : ''}Chance to win is calculated by Gridline.
     </p>
   );
 }
@@ -308,8 +357,8 @@ export function WPChart({ series, g, label }: { series: WinProbPoint[]; g: Game;
       <svg role="img" aria-label={label ?? `${h.name} win probability across the game, now ${Math.round(last.homeWinProb * 100)} percent`} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block', overflow: 'visible' }}>
         <rect x="0" y="0" width={W} height={H / 2} fill={h.color} opacity="0.08" />
         <rect x="0" y={H / 2} width={W} height={H / 2} fill={a.color} opacity="0.12" />
-        <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="#2A3542" strokeDasharray="4 4" />
-        {[900, 1800, 2700, 3600].filter((t) => t < maxT).map((t) => <line key={t} x1={x(t)} y1="0" x2={x(t)} y2={H} stroke="#1A222C" />)}
+        <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="#B9BDC6" strokeDasharray="4 4" />
+        {[900, 1800, 2700, 3600].filter((t) => t < maxT).map((t) => <line key={t} x1={x(t)} y1="0" x2={x(t)} y2={H} stroke="#DADDE3" />)}
         <polyline fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinejoin="round" points={pts} />
         <circle cx={x(last.t)} cy={y(last.homeWinProb)} r="4" fill="var(--accent)" />
       </svg>

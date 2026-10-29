@@ -3,10 +3,10 @@ import { data } from '../data/source';
 import { cached, useNow, useOnline, usePoll } from '../data/usePoll';
 import { href } from '../data/router';
 import { team, TEAMS } from '../shared/teams';
-import { clockTime, countdownText, streakText, weatherShort } from '../shared/format';
-import { Badge, Card, ErrorCard, FieldBar, Footer, FormDots, Icon, LinkButton, Nav, OfflineBanner, SampleBadge, Skeleton, teamName, TeamLine, WeekChip } from '../ui/parts';
-import { favoredText, GameCard, isLive, liveStatus, plainSituation } from '../ui/GameRow';
-import { winPct } from '../shared/teamdetail';
+import { useState } from 'react';
+import { clockTime, countdownText, etDateKey, spreadLabel } from '../shared/format';
+import { Badge, Card, Countdown3, ErrorCard, Footer, LinkButton, Nav, OfflineBanner, Skeleton, situationText, teamName, TopBar, WatchOn, WinNums } from '../ui/parts';
+import { GameCard, isLive, liveStatus, plainSituation, weatherLine } from '../ui/GameRow';
 
 export const pollEvery = (sb: Scoreboard | null) => (sb?.games.some(isLive) ? 10_000 : 60_000);
 
@@ -21,100 +21,102 @@ export function pickSpotlight(games: Game[]): Game | undefined {
 const longDay = (ms: number) => new Date(ms).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'America/New_York' });
 
 
-const CHIP_ICONS = {
-  live: <svg aria-hidden="true" width="22" height="22" viewBox="0 0 32 32"><g transform="rotate(-35 16 16)"><ellipse cx="16" cy="16" rx="13" ry="7.8" fill="#8B4513" stroke="#4A230A" strokeWidth="1.6" /><path d="M6 12.5q10-3.5 20 0M6 19.5q10 3.5 20 0" fill="none" stroke="#FFFFFF" strokeWidth="1.5" strokeLinecap="round" /><path d="M11.5 16h9" stroke="#FFFFFF" strokeWidth="1.6" strokeLinecap="round" /><path d="M13.5 14.2v3.6M16 14.2v3.6M18.5 14.2v3.6" stroke="#FFFFFF" strokeWidth="1.3" strokeLinecap="round" /></g></svg>,
-  later: <svg aria-hidden="true" width="22" height="22" viewBox="0 0 32 32"><circle cx="16" cy="17" r="12" fill="#2E2A52" stroke="#1D1A39" strokeWidth="1.6" /><circle cx="16" cy="17" r="9.5" fill="#FFFFFF" /><path d="M16 10.5V17l4.5 2.8" fill="none" stroke="#C2410C" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /><circle cx="16" cy="17" r="1.6" fill="#1D1A39" /><path d="M12 3.5h8" stroke="#2E2A52" strokeWidth="2.6" strokeLinecap="round" /><path d="M16 3.5v2" stroke="#2E2A52" strokeWidth="2.6" /></svg>,
-  done: <svg aria-hidden="true" width="22" height="22" viewBox="0 0 32 32"><path d="M16 30V18M7 18h18M7 18V3M25 18V3" fill="none" stroke="#FACC15" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" /><path d="M11 30h10" stroke="#B45309" strokeWidth="3" strokeLinecap="round" /><g transform="rotate(-30 16 9)"><ellipse cx="16" cy="9" rx="4.6" ry="2.9" fill="#8B4513" stroke="#4A230A" strokeWidth="1.1" /><path d="M14 9h4" stroke="#FFFFFF" strokeWidth="1" strokeLinecap="round" /></g></svg>
-};
+type Filter = 'all' | 'live' | 'later' | 'done';
 
 export function HomePage() {
   const online = useOnline();
-  const now = useNow();
+  const now = useNow(1_000);
+  const [filter, setFilter] = useState<Filter>('all');
   const q = usePoll(() => data.scoreboard(), pollEvery, []);
   const st = usePoll(() => cached('standings', () => data.standings()), 0, []);
   const sb = q.data;
   const games = sb?.games ?? [];
   const live = games.filter(isLive);
   const spot = pickSpotlight(games);
-  const upcoming = games.filter((g) => g.status === 'scheduled').sort((a, b) => a.kickoff.localeCompare(b.kickoff));
+  const upcoming = games.filter((g) => g.status === 'scheduled' || g.status === 'postponed').sort((a, b) => a.kickoff.localeCompare(b.kickoff));
   const upNext = upcoming[0];
   const finals = games.filter((g) => g.status === 'final').sort((a, b) => b.kickoff.localeCompare(a.kickoff));
-  const summary = !sb ? 'Getting today’s games…'
-    : live.length ? `${live.length} ${live.length === 1 ? 'game' : 'games'} on now${upcoming.length ? `, ${upcoming.length} more to come` : ''}`
-    : upcoming.length ? `Next kickoff ${countdownText(upcoming[0].kickoff, now)}` : 'All of this week’s games are finished';
+  const today = etDateKey(now);
+  const laterToday = upcoming.filter((g) => etDateKey(g.kickoff) === today).length;
+  const gameDay = live.length > 0 || games.some((g) => etDateKey(g.kickoff) === today);
+  const summary = !sb ? 'Getting this week’s games…'
+    : live.length ? `${live.length} ${live.length === 1 ? 'game' : 'games'} on now${laterToday ? `, ${laterToday} more later today` : upcoming.length ? `, ${upcoming.length} more this week` : ''}.`
+    : gameDay ? (upcoming.length ? `Next kickoff ${countdownText(upcoming[0].kickoff, now)}.` : 'Today’s games are finished.')
+    : 'Catch up on the latest results, or see who plays next.';
+  const playing = new Set(games.flatMap((g) => [g.away.abbr, g.home.abbr]));
+  const byes = games.length ? Object.keys(TEAMS).filter((t) => !playing.has(t)).map((t) => TEAMS[t].name) : [];
+  const show = (f: Filter) => filter === 'all' || filter === f;
+  const st2 = st.data ?? undefined;
 
   return (
     <div className="app home">
       <header className="top">
         <OfflineBanner online={online} stale={q.stale} updatedAt={q.updatedAt} retry={q.refresh} />
-        <div className="top-row">
-          <div className="brand"><b>Gridline</b></div>
-          <SampleBadge />
+        <TopBar />
+        <div className="mhero">
+          <span className="kick">{sb && <span className="wk-tag">Week {sb.week}</span>}<span>{longDay(now)}</span></span>
+          <h1>{!sb ? 'Gridline' : gameDay ? 'Game day' : 'No games today'}</h1>
+          <p>{summary}</p>
         </div>
-        <div className="hero">
-          <WeekChip left={sb ? `WEEK ${sb.week}` : 'TODAY'} right={longDay(now)} size="lg" />
-          <h1>{live.length ? 'Game day' : 'This week'}</h1>
-          <span className="sub">{summary}</span>
-        </div>
-        <a className="search-pill" href={href.search}>Find a team or game <Icon name="search" size={24} /></a>
+        {sb && (
+          <>
+            <div className="mtiles" role="group" aria-label="Jump to">
+              <button aria-pressed={filter === 'live'} onClick={() => setFilter(filter === 'live' ? 'all' : 'live')}><b className={live.length ? 'red' : ''}>{live.length}</b><span>Live now</span></button>
+              <button aria-pressed={filter === 'later'} onClick={() => setFilter(filter === 'later' ? 'all' : 'later')}><b>{upcoming.length}</b><span>Kickoff later</span></button>
+              <button aria-pressed={filter === 'done'} onClick={() => setFilter(filter === 'done' ? 'all' : 'done')}><b>{finals.length}</b><span>Final scores</span></button>
+            </div>
+            <div className="mpills" role="group" aria-label="Show">
+              <button aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>All <i>{games.length}</i></button>
+              <button aria-pressed={filter === 'live'} onClick={() => setFilter('live')}><span className="rd" />Live <i>{live.length}</i></button>
+              <button aria-pressed={filter === 'later'} onClick={() => setFilter('later')}>Later <i>{upcoming.length}</i></button>
+              <button aria-pressed={filter === 'done'} onClick={() => setFilter('done')}>Done <i>{finals.length}</i></button>
+            </div>
+          </>
+        )}
       </header>
-
 
       {!sb && q.error && <main className="page"><ErrorCard error={q.error} retry={q.refresh} /></main>}
       {!sb && !q.error && <Skeleton />}
 
       {sb && (
         <main className="page">
-          <nav className="chips3" aria-label="Show games">
-            <a href={href.games} className={live.length ? 'on' : ''} aria-label={`Live: ${live.length} games`}>{CHIP_ICONS.live}<b>{live.length}</b><span>Live</span></a>
-            <a href={href.games} aria-label={`Later: ${upcoming.length} games`}>{CHIP_ICONS.later}<b>{upcoming.length}</b><span>Later</span></a>
-            <a href={href.games} aria-label={`Final: ${finals.length} games`}>{CHIP_ICONS.done}<b>{finals.length}</b><span>Final</span></a>
-          </nav>
+          {show('live') && spot && <Spotlight g={spot} hideNumbers={q.stale || !online} />}
 
-          {spot && <Spotlight g={spot} hideNumbers={q.stale || !online} />}
-
-          {live.length > (spot ? 1 : 0) && (
-            <section className="glist" aria-label={spot ? 'Also live' : 'Live now'}>
-              <div className="glist-title"><h2 className="sec-title">{spot ? 'Also live' : 'Live now'}</h2><a className="link" href={href.games}>All games</a></div>
-              {live.filter((g) => g !== spot).map((g) => <GameCard key={g.id} g={g} />)}
+          {show('live') && live.length > (spot ? 1 : 0) && (
+            <section className="glist" aria-label="Live now">
+              <div className="sect-h"><h2><span className="lv" aria-hidden="true" />Live now</h2><span className="cnt">{live.length - (spot ? 1 : 0)}</span></div>
+              {live.filter((g) => g !== spot).map((g) => <GameCard key={g.id} g={g} standings={st2} />)}
             </section>
           )}
+          {filter === 'live' && !live.length && <p className="byes">No games are live right now.</p>}
 
-          {upNext && (
-            <section className="card pad" aria-label={`Coming up: ${teamName(upNext.away.abbr)} at ${teamName(upNext.home.abbr)}`}>
-              <span className="card-title">Coming up</span>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                <span style={{ fontSize: 26, fontWeight: 800 }}>{clockTime(upNext.kickoff)}</span>
-                <span className="sub" style={{ fontSize: 16 }}>Starts {countdownText(upNext.kickoff, now)}</span>
-              </div>
-              <a href={href.game(upNext.id)} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center', gap: 10, textAlign: 'center', color: 'var(--text)' }}>
-                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}><Badge abbr={upNext.away.abbr} size={56} /><b style={{ fontSize: 19 }}>{teamName(upNext.away.abbr)}</b>{recordWords(st.data, upNext.away.abbr)}</span>
-                <span style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontWeight: 800, fontSize: 20, color: 'var(--muted)' }}>at</span>
-                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}><Badge abbr={upNext.home.abbr} size={56} /><b style={{ fontSize: 19 }}>{teamName(upNext.home.abbr)}</b>{recordWords(st.data, upNext.home.abbr)}</span>
-              </a>
-              <div className="chips">
-                {favoredText(upNext) && <span className="chip">{favoredText(upNext)}</span>}
-                {weatherShort(upNext) && <span className="chip">{weatherShort(upNext)}</span>}
-              </div>
-              <LinkButton to={href.game(upNext.id)} kind="primary">Lineups and preview</LinkButton>
+          {show('later') && !live.length && upNext && upNext.status === 'scheduled' && <NextMatchup g={upNext} now={now} standings={st.data} />}
+
+          {show('later') && upcoming.length > 0 && (
+            <section className="glist" aria-label={gameDay ? 'Later' : 'Coming up'}>
+              <div className="sect-h"><h2>{gameDay ? 'Later' : 'Coming up'}</h2><span className="cnt">{upcoming.length}</span></div>
+              {upcoming.map((g) => <GameCard key={g.id} g={g} standings={st2} />)}
             </section>
           )}
+          {filter === 'later' && !upcoming.length && <p className="byes">No more kickoffs this week.</p>}
 
-          {finals.length > 0 && (
+          {show('done') && finals.length > 0 && (
             <section className="glist" aria-label="Final scores">
-              <h2 className="sec-title">Final scores</h2>
-              {finals.map((g) => <GameCard key={g.id} g={g} />)}
+              <div className="sect-h"><h2>Final scores</h2><span className="cnt">{finals.length}</span></div>
+              {finals.map((g) => <GameCard key={g.id} g={g} standings={st2} />)}
             </section>
           )}
+          {filter === 'done' && !finals.length && <p className="byes">No games have finished yet this week.</p>}
 
           {!games.length && (
             <Card title="This week">
               <p className="empty">No games found for this week yet.</p>
-              <LinkButton to={href.schedule}>See next week</LinkButton>
+              <LinkButton to={href.games}>See the schedule</LinkButton>
             </Card>
           )}
 
-          {st.data && <Leaders standings={st.data} />}
+          {byes.length > 0 && <p className="byes">On bye this week: {byes.join(', ')}</p>}
+          {q.updatedAt && <p className="updated">Updated {new Date(q.updatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}</p>}
           <Footer />
         </main>
       )}
@@ -123,10 +125,27 @@ export function HomePage() {
   );
 }
 
-function recordWords(standings: Standing[] | null, abbr: string) {
-  const s = standings?.find((x) => x.team === abbr);
-  if (!s) return null;
-  return <span className="sub" style={{ whiteSpace: 'nowrap' }}>Record {s.w}–{s.l}{s.t ? `–${s.t}` : ''}</span>;
+function NextMatchup({ g, now, standings }: { g: Game; now: number; standings: Standing[] | null }) {
+  const rec = (abbr: string, fb?: string) => {
+    const s = standings?.find((x) => x.team === abbr);
+    return s ? `${s.w}-${s.l}${s.t ? `-${s.t}` : ''}` : fb ?? '';
+  };
+  const day = new Date(g.kickoff).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'America/New_York' });
+  const meta = [`${day}, ${clockTime(g.kickoff)}`, spreadLabel(g) ? `Favorite ${spreadLabel(g)}` : null, g.odds?.total != null ? `O/U ${g.odds.total}` : null, weatherLine(g)].filter(Boolean).join(' · ');
+  return (
+    <section className="card nextm" aria-label={`Next matchup: ${teamName(g.away.abbr)} at ${teamName(g.home.abbr)}`}>
+      <span className="kk">NEXT MATCHUP</span>
+      <a className="vs" href={href.game(g.id)}>
+        <span><Badge abbr={g.away.abbr} size={48} /><b>{teamName(g.away.abbr)}</b><small>{rec(g.away.abbr, g.away.record)}</small></span>
+        <span className="at">AT</span>
+        <span><Badge abbr={g.home.abbr} size={48} /><b>{teamName(g.home.abbr)}</b><small>{rec(g.home.abbr, g.home.record)}</small></span>
+      </a>
+      <span className="meta">{meta}</span>
+      <WatchOn tv={g.tv} big />
+      <Countdown3 iso={g.kickoff} now={now} />
+      <a className="btn primary" href={href.game(g.id)}>Preview the game</a>
+    </section>
+  );
 }
 
 export function FinalRow({ g }: { g: Game }) {
@@ -144,66 +163,42 @@ export function FinalRow({ g }: { g: Game }) {
 function Spotlight({ g, hideNumbers }: { g: Game; hideNumbers: boolean }) {
   const as = g.away.score ?? 0, hs = g.home.score ?? 0;
   const hp = g.homeWinProb ?? 0.5;
-  const ap = 1 - hp;
   const sentence = plainSituation(g);
+  const sit = situationText(g);
+  const q = g.quarter && g.quarter >= 5 ? 'OT' : ['1st', '2nd', '3rd', '4th'][(g.quarter ?? 1) - 1];
+  const side = (s: 'away' | 'home') => {
+    const t = team(g[s].abbr);
+    const mine = s === 'away' ? as : hs, theirs = s === 'away' ? hs : as;
+    return (
+      <a className={`spot-team${mine < theirs ? ' dim' : ''}`} href={href.team(t.abbr)} key={s}>
+        <Badge abbr={t.abbr} size={44} />
+        <span className="tx">
+          <small>{t.city}</small><b>{t.name}</b>
+          {g.status === 'live' && g.possession === s ? <em><i />Has the ball</em> : s === 'home' ? <em>Home team</em> : null}
+        </span>
+        <span className="sc">{g[s].score ?? 0}</span>
+      </a>
+    );
+  };
   return (
-    <section className="card pad" aria-label={`${teamName(g.away.abbr)} at ${teamName(g.home.abbr)}, live`}>
-      {g.status === 'live' ? (
-        <div className="sbcall" aria-label={liveStatus(g)}>
-          <span><span className="k">QUARTER</span><span className="q">{g.quarter && g.quarter >= 5 ? 'OT' : ['1st', '2nd', '3rd', '4th'][(g.quarter ?? 1) - 1]}</span></span>
-          <span><span className="k">TIME LEFT</span><span className="t">{g.clock ?? '–'}</span></span>
-          <span className="lv"><span className="dot" style={{ background: '#FFFFFF' }} />LIVE</span>
-        </div>
-      ) : (
-        <div className="sbline"><span className="lvp"><span className="dot" style={{ background: '#FFFFFF' }} />LIVE</span><span className="qq">HALFTIME</span></div>
-      )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <TeamLine abbr={g.away.abbr} score={as} trail={as < hs} poss={g.possession === 'away'} size={52} nameSize={21} scoreSize={44} full={false} />
-        <TeamLine abbr={g.home.abbr} score={hs} trail={hs < as} poss={g.possession === 'home'} size={52} nameSize={21} scoreSize={44} full={false} />
+    <section className="spot" aria-label={`${teamName(g.away.abbr)} at ${teamName(g.home.abbr)}, live`}>
+      <div className="spot-top">
+        <span className="lv-pill">{g.status === 'halftime' ? 'HALF' : 'LIVE'}</span>
+        {g.status === 'live' ? (
+          <>
+            <span className="k"><small>QUARTER</small><b>{q}</b></span>
+            <span className="k"><small>TIME LEFT</small><b>{g.clock ?? '–'}</b></span>
+          </>
+        ) : <span className="k"><small>STATUS</small><b>Halftime</b></span>}
       </div>
-      {sentence && <p className="plain">{sentence}</p>}
-      {g.status === 'live' && <FieldBar g={g} />}
-      {!hideNumbers && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, gap: 8 }}>
-            <b>Chance to win</b>
-            <span>{hp >= 0.5
-              ? <><b>{teamName(g.home.abbr)} {Math.round(hp * 100)}%</b> · {teamName(g.away.abbr)} {Math.round(ap * 100)}%</>
-              : <><b>{teamName(g.away.abbr)} {Math.round(ap * 100)}%</b> · {teamName(g.home.abbr)} {Math.round(hp * 100)}%</>}</span>
-          </div>
-          <div className="wpbar" aria-hidden="true">
-            <div style={{ width: `${ap * 100}%`, background: team(g.away.abbr).color }} />
-            <div style={{ flex: 1, background: team(g.home.abbr).color }} />
-          </div>
-        </div>
-      )}
-      <a className="btn primary" href={href.game(g.id)}>Follow this game <Icon name="next" size={20} stroke={2.6} /></a>
+      <div className="spot-teams">{side('away')}{side('home')}</div>
+      <WatchOn tv={g.tv} dark />
+      <div className="spot-body">
+        {sit && <span className="dd">{sit}</span>}
+        {sentence && <p>{sentence}</p>}
+        {!hideNumbers && <WinNums g={g} homeProb={hp} />}
+        <a className="btn primary" href={href.game(g.id)}>Open game center</a>
+      </div>
     </section>
   );
 }
-
-function Leaders({ standings }: { standings: Standing[] }) {
-  const rows = (['AFC', 'NFC'] as const).flatMap((conf) =>
-    (['East', 'North', 'South', 'West'] as const).map((div) => {
-      const inDiv = standings.filter((s) => TEAMS[s.team]?.conf === conf && TEAMS[s.team]?.div === div);
-      const top = inDiv.sort((a, b) => winPct(b) - winPct(a) || (b.pf - b.pa) - (a.pf - a.pa))[0];
-      return top ? { conf, div, s: top } : null;
-    })
-  ).filter((x): x is NonNullable<typeof x> => !!x);
-  if (!rows.length) return null;
-  return (
-    <Card title="Top of each division" right={<a href={href.standings()}>Standings</a>}>
-      {rows.map(({ conf, div, s }) => (
-        <a className="row" key={`${conf}-${div}`} href={href.team(s.team)} aria-label={`${conf} ${div} leader: ${teamName(s.team, true)}, ${s.w} wins and ${s.l} losses`}>
-          <Badge abbr={s.team} size={38} />
-          <span style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: 18, fontWeight: 700 }}>{team(s.team).name}</span>
-            <span className="sub">{conf} {div} · {s.w}–{s.l}{s.t ? `–${s.t}` : ''} · {streakText(s.streak)}</span>
-          </span>
-          <FormDots s={s} />
-        </a>
-      ))}
-    </Card>
-  );
-}
-

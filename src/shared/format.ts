@@ -126,3 +126,20 @@ export function streakText(s: string): string {
 export function record(w: number, l: number, t: number): string {
   return `${w}-${l}${t ? `-${t}` : ''}`;
 }
+
+// ---- TV networks: always shown in full, never abbreviated ----
+const NETWORKS: Record<string, string> = {
+  AMZN: 'Prime Video', AMAZON: 'Prime Video', PRIME: 'Prime Video', 'PRIME VIDEO': 'Prime Video',
+  'CBS/P': 'CBS · Paramount+', 'CBS/PARAMOUNT+': 'CBS · Paramount+', 'PARAMOUNT+': 'Paramount+',
+  'NBC/P': 'NBC · Peacock', 'NBC/PEACOCK': 'NBC · Peacock', PEACOCK: 'Peacock',
+  NFLN: 'NFL Network', 'NFL NETWORK': 'NFL Network', NFLNET: 'NFL Network',
+  'ESPN/ABC': 'ESPN · ABC', 'ABC/ESPN': 'ABC · ESPN', ESPN2: 'ESPN2', 'ESPN+': 'ESPN+',
+  NETFLIX: 'Netflix', NFLX: 'Netflix', YOUTUBE: 'YouTube', YT: 'YouTube', 'NFL+': 'NFL+',
+  FOX: 'FOX', CBS: 'CBS', NBC: 'NBC', ABC: 'ABC', ESPN: 'ESPN'
+};
+/** Full network name for display, e.g. "AMZN" -> "Prime Video". */
+export function networkName(tv?: string | null): string | null {
+  if (!tv) return null;
+  const k = tv.trim().toUpperCase();
+  return NETWORKS[k] ?? tv.trim();
+}

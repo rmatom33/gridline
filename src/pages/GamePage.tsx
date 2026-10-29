@@ -4,45 +4,66 @@ import { team } from '../shared/teams';
 import { data } from '../data/source';
 import { cached, useNow, useOnline, usePoll } from '../data/usePoll';
 import { href } from '../data/router';
-import { clockTime, countdown, kickoffTime, moneyline, periodLabel, record, shortDay, spreadLabel, streakText } from '../shared/format';
+import { clockTime, kickoffTime, moneyline, periodLabel, record, shortDay, spreadLabel, streakText } from '../shared/format';
 import { impact, statLine } from '../shared/stats';
 import { groupDrives, wpDeltas } from '../shared/drives';
 import {
-  Badge, CenterBar, GoArrow, injuryWords, Card, ErrorCard, Field, Footer, FormBoxes, Icon, InjuryRows, LinkButton, Nav, OfflineBanner,
-  PadCard, posWords, situationText, Skeleton, StatBars, teamName, WeekChip, WPBar, WPChart
+  Badge, Card, Countdown3, ErrorCard, GoArrow, Field, Footer, FormBoxes, Icon, injuryClass, injuryWords, InjuryRows, LinkButton, Nav, OfflineBanner,
+  PadCard, posWords, situationText, Skeleton, StatBars, teamName, TopBar, WatchOn, WinNums, WPBar, WPChart
 } from '../ui/parts';
-import { favoredText, liveStatus } from '../ui/GameRow';
+import { liveStatus, plainSituation } from '../ui/GameRow';
 
 const isLiveG = (g: GameDetail) => g.status === 'live' || g.status === 'halftime';
+
+type Tab = 'preview' | 'lineups' | 'injuries' | 'odds' | 'center' | 'box';
 
 export function GamePage({ id }: { id: string }) {
   const online = useOnline();
   const q = usePoll(() => data.game(id), (g) => (g && isLiveG(g) ? 8_000 : g?.status === 'final' ? 0 : 60_000), [id]);
   const st = usePoll(() => cached('standings', () => data.standings()), 0, []);
+  const [tabSel, setTab] = useState<Tab | null>(null);
   const g = q.data;
   const stale = q.stale || !online;
+  const pre = !!g && (g.status === 'scheduled' || g.status === 'postponed');
+  const tabs: [Tab | 'plays', string][] = pre
+    ? [['preview', 'Preview'], ['lineups', 'Lineups'], ['injuries', 'Injuries'], ['odds', 'Odds']]
+    : [['center', g?.status === 'final' ? 'Recap' : 'Game center'], ['plays', 'Play-by-play'], ['box', 'Box score']];
+  const valid = tabs.some(([k]) => k === tabSel);
+  const tab: Tab = valid && tabSel ? tabSel : pre ? 'preview' : 'center';
 
   return (
     <div className="app">
       <div className="top">
         <OfflineBanner online={online} stale={q.stale} updatedAt={q.updatedAt} retry={q.refresh} />
-        <CenterBar fallback={href.games} backLabel="Back to all games" right={g?.status === 'final' ? <ShareButton g={g} /> : undefined}>
-          <span className="ttl">{g ? `${teamName(g.away.abbr)} at ${teamName(g.home.abbr)}` : 'Game'}</span>
-          {g && <WeekChip left={`WEEK ${g.week}`} right={g.venue?.city ?? null} />}
-        </CenterBar>
-        {g && g.status !== 'scheduled' && g.status !== 'postponed' && <ScoreHeader g={g} standings={st.data} stale={stale} />}
-        {g && (g.status === 'scheduled' || g.status === 'postponed') && <PregameHeader g={g} standings={st.data} />}
+        <TopBar fallback={href.games} backLabel="Back to all games" right={g?.status === 'final' ? <ShareButton g={g} /> : undefined} />
+        {g && <GameHeader g={g} standings={st.data} stale={stale} />}
+        {!g && <div className="cb-mid"><span className="ttl">Game</span></div>}
       </div>
+      {g && g.status === 'live' && situationText(g) && (
+        <div className="gsit"><b>{situationText(g)}</b>{g.lastPlay && <p>Last play: {g.lastPlay}</p>}</div>
+      )}
+      {g && (
+        <nav className="gtabs" role="tablist" aria-label="Game sections">
+          {tabs.map(([k, label]) => k === 'plays'
+            ? <a key={k} role="tab" aria-selected="false" href={href.plays(g.id)}>{label}</a>
+            : <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{label}</button>)}
+        </nav>
+      )}
 
       {!g && q.error && <main className="page"><ErrorCard error={q.error} retry={q.refresh} /></main>}
       {!g && !q.error && <Skeleton />}
 
       {g && (
         <main className="page tight">
-          {(g.status === 'scheduled' || g.status === 'postponed') && <Pregame g={g} standings={st.data} stale={stale} />}
-          {g.status === 'live' && <Live g={g} standings={st.data} stale={stale} />}
-          {g.status === 'halftime' && <Halftime g={g} stale={stale} />}
-          {g.status === 'final' && <Final g={g} />}
+          {pre && tab === 'preview' && <Pregame g={g} standings={st.data} stale={stale} onLineups={() => setTab('lineups')} />}
+          {pre && tab === 'lineups' && <Lineups g={g} />}
+          {pre && tab === 'injuries' && <Card title="Injury report"><InjuryRows list={g.injuries} /></Card>}
+          {pre && tab === 'odds' && <>{!stale && <BetCard g={g} />}{!stale && <ChanceCard g={g} />}</>}
+          {g.status === 'live' && tab === 'center' && <Live g={g} stale={stale} />}
+          {g.status === 'halftime' && tab === 'center' && <Halftime g={g} stale={stale} />}
+          {g.status === 'final' && tab === 'center' && <Final g={g} />}
+          {!pre && tab === 'box' && <BoxScore g={g} standings={st.data} />}
+          {q.updatedAt && <p className="updated">Updated {new Date(q.updatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}</p>}
           <Footer odds={g.status !== 'final'} />
         </main>
       )}
@@ -55,103 +76,61 @@ export function GamePage({ id }: { id: string }) {
 // Header
 // ---------------------------------------------------------------------------
 
-function ScoreHeader({ g, standings, stale }: { g: GameDetail; standings: Standing[] | null; stale: boolean }) {
+function GameHeader({ g, standings, stale }: { g: GameDetail; standings: Standing[] | null; stale: boolean }) {
   const as = g.away.score ?? 0, hs = g.home.score ?? 0;
+  const pre = g.status === 'scheduled' || g.status === 'postponed';
   const final = g.status === 'final';
   const winner = final ? (as > hs ? 'away' : hs > as ? 'home' : null) : null;
-  const words = (abbr: string) => {
+  const rec = (abbr: string, fb?: string) => {
     const s = standings?.find((x) => x.team === abbr);
-    return s ? `Record ${s.w}–${s.l}${s.t ? `–${s.t}` : ''}` : '';
+    return s ? record(s.w, s.l, s.t) : fb ?? '';
   };
+  const where = [g.venue?.city, g.venue?.state].filter(Boolean).join(', ');
+  const q = g.quarter && g.quarter >= 5 ? 'OT' : ['1ST', '2ND', '3RD', '4TH'][(g.quarter ?? 1) - 1];
   const side = (s: 'away' | 'home') => {
-    const t = g[s];
-    const hasBall = g.status === 'live' && g.possession === s;
-    const meta = final ? (winner === s ? 'won' : winner ? 'lost' : 'tied') : hasBall ? 'has the ball' : s === 'home' ? 'home team' : words(t.abbr);
+    const t = team(g[s].abbr);
+    const r = rec(t.abbr, g[s].record);
     return (
-      <a href={href.team(t.abbr)} className="sb-side" aria-label={`${teamName(t.abbr, true)}, ${meta}`}>
-        <Badge abbr={t.abbr} size={60} />
-        <span className="tname">{teamName(t.abbr)}</span>
-        <span className="meta">
-          {winner === s ? <span className="sb-status" style={{ height: 26, fontSize: 13 }}>WON</span> : <span style={{ whiteSpace: 'nowrap' }}>{meta}</span>}
-          {g.status === 'live' && t.timeouts != null && (
-            <span className="timeouts" aria-label={`${t.timeouts} timeouts left`}>
-              {[0, 1, 2].map((n) => <span key={n} className={n < t.timeouts! ? 'on' : ''} />)}
-            </span>
-          )}
-        </span>
+      <a href={href.team(t.abbr)} className="gh-side" aria-label={`${t.city} ${t.name}${r ? `, ${r}` : ''}`}>
+        <Badge abbr={t.abbr} size={56} />
+        <small>{t.city}</small>
+        <b>{t.name}</b>
+        <span className="rec">{r ? `${r} · ` : ''}{s === 'home' ? 'Home' : 'Away'}</span>
+        {g.status === 'live' && g.possession === s && <span className="hb"><i />HAS THE BALL</span>}
+        {winner === s && <span className="won">WON</span>}
+        {g.status === 'live' && g[s].timeouts != null && (
+          <span className="timeouts" aria-label={`${g[s].timeouts} timeouts left`}>
+            {[0, 1, 2].map((n) => <span key={n} className={n < g[s].timeouts! ? 'on' : ''} />)}
+          </span>
+        )}
       </a>
     );
   };
-  const dim = (mine: number, theirs: number) => (mine < theirs ? { color: 'var(--dim-on-navy)' } : undefined);
-  return (
-    <div className="scoreboard" aria-label="Scoreboard">
-      {side('away')}
-      <div className="sb-mid" aria-label={`${teamName(g.away.abbr)} ${as}, ${teamName(g.home.abbr)} ${hs}, ${liveStatus(g)}`}>
-        <span className="sb-score"><span style={dim(as, hs)}>{as}</span><span className="sep"> – </span><span style={dim(hs, as)}>{hs}</span></span>
-        <span className={`sb-status ${final || g.status === 'halftime' ? 'final' : ''}`}>
-          {final ? liveStatus(g) : g.status === 'halftime' ? 'Halftime' : `${periodLabel(g.quarter) === 'OT' ? 'OT' : ['1st', '2nd', '3rd', '4th'][(g.quarter ?? 1) - 1]} \u00b7 ${g.clock ?? ''} left${stale ? ' \u00b7 paused' : ''}`}
-        </span>
-      </div>
-      {side('home')}
-    </div>
-  );
-}
-
-function ShareButton({ g }: { g: GameDetail }) {
-  const [done, setDone] = useState(false);
-  const text = `${teamName(g.away.abbr)} ${g.away.score} – ${teamName(g.home.abbr)} ${g.home.score} (${liveStatus(g).toLowerCase()})`;
-  const onClick = async () => {
-    const url = window.location.href;
-    try {
-      if (navigator.share) await navigator.share({ title: 'Gridline', text, url });
-      else { await navigator.clipboard.writeText(`${text} ${url}`); setDone(true); setTimeout(() => setDone(false), 2000); }
-    } catch { /* cancelled */ }
-  };
-  return (
-    <button className="icon-btn" onClick={onClick} aria-label={done ? 'Link copied' : 'Share this result'} title={done ? 'Link copied' : 'Share'}>
-      {done ? <span className="mono" style={{ fontSize: 10, color: 'var(--accent)' }}>COPIED</span> : <Icon name="share" />}
-    </button>
-  );
-}
-
-function PregameHeader({ g, standings }: { g: GameDetail; standings: Standing[] | null }) {
-  const now = useNow();
-  const rec = (abbr: string, fb?: string) => {
-    const s = standings?.find((x) => x.team === abbr);
-    return s ? `Record ${s.w}–${s.l}${s.t ? `–${s.t}` : ''}` : fb ? `Record ${fb.replace('-', '–')}` : '';
-  };
-  const c = countdown(g.kickoff, now);
-  const cells: [string, string][] = c.days > 0
-    ? [[String(c.days), c.days === 1 ? 'day' : 'days'], [String(c.hours), c.hours === 1 ? 'hour' : 'hours']]
-    : [[String(c.hours), c.hours === 1 ? 'hour' : 'hours'], [String(c.mins).padStart(2, '0'), 'minutes']];
   const t = clockTime(g.kickoff);
-  const day = c.days > 0 ? new Date(g.kickoff).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/New_York' }) : 'today';
+  const day = new Date(g.kickoff).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' }).toUpperCase();
   return (
     <>
-      <div className="pg-teams">
-        {(['away', 'home'] as const).map((side, i) => [
-          i === 1 ? <span key="at" className="at">at</span> : null,
-          <a key={side} href={href.team(g[side].abbr)}>
-            <Badge abbr={g[side].abbr} size={64} />
-            <span style={{ fontSize: 19, fontWeight: 700 }}>{teamName(g[side].abbr)}</span>
-            <span className="sub" style={{ fontSize: 14, whiteSpace: 'nowrap' }}>{rec(g[side].abbr, g[side].record)}</span>
-          </a>
-        ])}
-      </div>
-      {g.status !== 'postponed' && (
-        <div className="kickboard" role="timer" aria-label={`Kickoff ${day} at ${t}, in ${cells.map(([v, k]) => `${v} ${k}`).join(' ')}`}>
-          <div className="cd">
-            <span className="cap">KICKOFF IN</span>
-            <span className="nums">
-              <span className="n"><b>{cells[0][0]}</b><span>{cells[0][1]}</span></span>
-              <span className="colon" aria-hidden="true">:</span>
-              <span className="n"><b>{cells[1][0]}</b><span>{cells[1][1]}</span></span>
-            </span>
+      <div className="gh-meta"><span>Week {g.week}{where ? ` · ${where}` : ''}</span></div>
+      <div className="gh">
+        {side('away')}
+        {pre ? (
+          <div className="gh-mid" aria-label={`Kickoff ${day} at ${t} Eastern`}>
+            <span className="day">{day}</span>
+            <span className="time">{g.status === 'postponed' ? 'TBD' : t}</span>
+            <span className="cap">{g.status === 'postponed' ? 'POSTPONED' : 'KICKOFF · ET'}</span>
           </div>
-          <div className="ko"><small>KICKOFF</small><b>{t.replace(/ [AP]M$/, '')}</b><span>{t.slice(-2)} {day}</span></div>
-        </div>
-      )}
-      <div style={{ height: 20 }} />
+        ) : (
+          <div className="gh-mid" aria-label={`${teamName(g.away.abbr)} ${as}, ${teamName(g.home.abbr)} ${hs}, ${liveStatus(g)}`}>
+            <span className="score"><span className={final && as < hs ? 'lo' : ''}>{as}</span><i>–</i><span className={final && hs < as ? 'lo' : ''}>{hs}</span></span>
+            {final ? <span className="st done">{g.overtime ? 'FINAL · OT' : 'FINAL'}</span>
+              : g.status === 'halftime' ? <span className="st"><span className="lv-pill">HALF</span>HALFTIME</span>
+              : <span className="st"><span className="lv-pill">LIVE</span>{q} · {g.clock ?? ''}{stale ? ' · PAUSED' : ''}</span>}
+          </div>
+        )}
+        {side('home')}
+      </div>
+      <WatchOn tv={g.tv} label={final ? 'Aired on' : 'Watch on'} dark big style={{ margin: '14px 16px 16px' }} />
+      {!g.tv && <div style={{ height: 16 }} />}
     </>
   );
 }
@@ -244,38 +223,83 @@ function FormCard({ g, standings, title = 'Last 5 games', season = false }: { g:
 
 const fmtDiff = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0');
 
-function OddsWeather({ g, stale, live }: { g: GameDetail; stale: boolean; live: boolean }) {
+/** Implied chance from an American moneyline. */
+const implied = (ml: number | null | undefined) => (ml == null ? null : ml < 0 ? -ml / (-ml + 100) : 100 / (ml + 100));
+
+function BetCard({ g, live = false }: { g: GameDetail; live?: boolean }) {
   const o = g.odds;
-  const w = g.weather;
+  if (!o || (o.spread == null && o.total == null && o.homeMoneyline == null)) return <PadCard title="Betting line"><span className="sub">No betting line yet.</span></PadCard>;
+  const fav = o.spread == null || o.spread === 0 ? null : o.spread < 0 ? g.home.abbr : g.away.abbr;
+  const spread = o.spread == null ? '–' : o.spread === 0 ? 'Even matchup' : `${teamName(fav!)} by ${Math.abs(o.spread)} ${Math.abs(o.spread) === 1 ? 'point' : 'points'}`;
+  const rows = ([['away', o.awayMoneyline], ['home', o.homeMoneyline]] as const);
   return (
-    <div className="grid2">
-      <section className="mini" aria-label="Betting line">
-        <span className="label">{live ? 'Betting line now' : 'Betting line'}</span>
-        {stale ? <span className="sub">Hidden until you're back online</span> : (
-          <>
-            <span className="big">{favoredText(g)?.replace(' favored', '') ?? 'No line yet'}</span>
-            <span className="sub">
-              {o?.homeMoneyline != null || o?.awayMoneyline != null ? <>ML {g.away.abbr} {moneyline(o?.awayMoneyline)} / {g.home.abbr} {moneyline(o?.homeMoneyline)}<br /></> : null}
-              {o?.total != null ? `Total ${o.total}` : ''}
-            </span>
-          </>
-        )}
-      </section>
-      <section className="mini" aria-label="Weather">
-        <span className="label">Weather</span>
-        {w?.dome ? (
-          <><span className="big">Indoors</span><span className="sub">Dome · no weather effect</span></>
-        ) : (
-          <>
-            <span className="big">{w?.tempF != null ? `${Math.round(w.tempF)}°F` : '–'}</span>
-            <span className="sub">
-              {[w?.description, w?.windMph != null ? `${w.windDir ? `${w.windDir} ` : ''}${Math.round(w.windMph)} mph` : null].filter(Boolean).join(' · ')}
-              {w?.precipPct != null ? <><br />Rain {w.precipPct}% · Outdoor</> : <><br />Outdoor</>}
-            </span>
-          </>
-        )}
-      </section>
-    </div>
+    <PadCard title={live ? 'Current betting line' : 'Betting line'}>
+      <div className="bet2">
+        <div><small>POINT SPREAD</small><b>{spread}</b></div>
+        <div><small>TOTAL POINTS (O/U)</small><b>{o.total ?? '–'}</b></div>
+      </div>
+      {(o.homeMoneyline != null || o.awayMoneyline != null) && (
+        <div role="table" aria-label="Moneyline">
+          <div className="mltab-h" role="row"><span>TEAM</span><span>MONEYLINE</span><span>CHANCE</span></div>
+          {rows.map(([side, ml]) => (
+            <div className="mltab-r" role="row" key={side}>
+              <span><Badge abbr={g[side].abbr} size={24} />{teamName(g[side].abbr)}</span>
+              <span>{moneyline(ml)}</span>
+              <span>{implied(ml) != null ? `${Math.round(implied(ml)! * 100)}%` : '–'}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <span className="note">For information only. Lines change. 21+. Gambling problem? Call 1-800-GAMBLER.</span>
+    </PadCard>
+  );
+}
+
+function ChanceCard({ g, note }: { g: GameDetail; note?: string }) {
+  const hp = g.homeWinProb ?? g.pregameHomeWinProb;
+  if (hp == null) return null;
+  return (
+    <PadCard title="Chance to win">
+      <WinNums g={g} homeProb={hp} />
+      <span className="note">{note ?? 'Based on the betting line. Updates after every play once the game starts.'}</span>
+    </PadCard>
+  );
+}
+
+function WeatherCard({ g, title = 'Weather at kickoff' }: { g: GameDetail; title?: string }) {
+  const w = g.weather;
+  if (!w) return null;
+  if (w.dome) return <PadCard title={title}><div className="wx-top"><span className="go" style={{ width: 48, height: 48 }}><Icon name="where" size={24} /></span><span><strong>Indoors</strong><span className="sub" style={{ display: 'block' }}>Roof closed, so weather has no effect.</span></span></div></PadCard>;
+  const windy = (w.windMph ?? 0) >= 18;
+  const wet = (w.precipPct ?? 0) >= 40;
+  const note = windy ? 'Strong wind may affect kicks and deep passes.' : wet ? 'Rain is likely: watch for fumbles.' : 'Good conditions for football.';
+  const cond = w.description ? w.description.charAt(0).toUpperCase() + w.description.slice(1) : windy ? 'Windy' : '–';
+  return (
+    <PadCard title={title}>
+      <div className="wx-top"><b>{w.tempF != null ? `${Math.round(w.tempF)}°` : '–'}</b><span><strong>{cond}</strong><span className="sub" style={{ display: 'block' }}>{note}</span></span></div>
+      <div className="wx3">
+        <div><Icon name="wind" size={18} /><span>Wind</span><b>{w.windMph != null ? `${Math.round(w.windMph)} mph${w.windDir ? ` ${w.windDir}` : ''}` : '–'}</b></div>
+        <div><Icon name="drop" size={18} /><span>Rain</span><b>{w.precipPct != null ? `${w.precipPct}%` : '–'}</b></div>
+        <div><Icon name="temp" size={18} /><span>Temp</span><b>{w.tempF != null ? `${Math.round(w.tempF)}°F` : '–'}</b></div>
+      </div>
+    </PadCard>
+  );
+}
+
+function ShareButton({ g }: { g: GameDetail }) {
+  const [done, setDone] = useState(false);
+  const text = `${teamName(g.away.abbr)} ${g.away.score} – ${teamName(g.home.abbr)} ${g.home.score} (${liveStatus(g).toLowerCase()})`;
+  const onClick = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) await navigator.share({ title: 'Gridline', text, url });
+      else { await navigator.clipboard.writeText(`${text} ${url}`); setDone(true); setTimeout(() => setDone(false), 2000); }
+    } catch { /* cancelled */ }
+  };
+  return (
+    <button className="sq-btn" onClick={onClick} aria-label={done ? 'Link copied' : 'Share this result'} title={done ? 'Link copied' : 'Share'}>
+      {done ? <span style={{ fontSize: 9, fontWeight: 800 }}>COPIED</span> : <Icon name="share" />}
+    </button>
   );
 }
 
@@ -310,125 +334,153 @@ export function PlayRow({ p, delta }: { p: Play; delta?: number }) {
 // Pre-game
 // ---------------------------------------------------------------------------
 
-function Pregame({ g, standings, stale }: { g: GameDetail; standings: Standing[] | null; stale: boolean }) {
-  const [tab, setTab] = useState<'away' | 'home'>('away');
+function previewText(g: GameDetail, standings: Standing[] | null): string {
+  const rec = (abbr: string, fb?: string) => {
+    const s = standings?.find((x) => x.team === abbr);
+    return s ? record(s.w, s.l, s.t) : fb;
+  };
+  const a = team(g.away.abbr), h = team(g.home.abbr);
+  const ar = rec(a.abbr, g.away.record), hr = rec(h.abbr, g.home.record);
+  let t = `${a.city}${ar ? ` (${ar})` : ''} visits ${h.city}${hr ? ` (${hr})` : ''}.`;
   const o = g.odds;
-  const fav = o?.spread != null ? (o.spread <= 0 ? 'home' : 'away') : null;
-  const dog = fav === 'home' ? 'away' : 'home';
-  const lineup = g.lineups[tab];
+  if (o?.spread != null && o.spread !== 0) {
+    const fav = o.spread < 0 ? h : a;
+    t += ` ${fav.name} are ${Math.abs(o.spread)}-point favorites${o.total != null ? `, with ${o.total} total points expected` : ''}.`;
+  } else if (o?.total != null) t += ` ${o.total} total points expected.`;
+  return t;
+}
+
+function Pregame({ g, standings, stale, onLineups }: { g: GameDetail; standings: Standing[] | null; stale: boolean; onLineups: () => void }) {
+  const now = useNow(1_000);
   const venue = [g.venue?.name, [g.venue?.city, g.venue?.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
+  const day = new Date(g.kickoff).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
+  const hasLineups = g.lineups.away.length > 0 || g.lineups.home.length > 0;
   return (
     <>
       {g.status === 'postponed' && <div className="alert"><b>Postponed</b><span className="sub">A new kickoff time hasn't been announced yet.</span></div>}
-      <p className="sub" style={{ textAlign: 'center' }}>{shortDay(g.kickoff)} · {kickoffTime(g.kickoff)}{venue ? ` · ${venue}` : ''}</p>
+      <section className="callout-m" aria-label="Game preview"><small>Game preview</small><p>{previewText(g, standings)}</p></section>
 
-
-      {!stale && o && (o.spread != null || o.total != null) && (
-        <section className="card pad" aria-label="The betting line">
-          <span className="card-title">The betting line</span>
-          {o.spread != null && <div className="tile"><span className="label">Point spread</span><b style={{ fontSize: 19 }}>{favoredText(g) ?? '–'}</b></div>}
-          {o.total != null && <div className="tile"><span className="label">Total points expected</span><span style={{ fontSize: 19 }}><b>{o.total}</b> between both teams</span></div>}
-          {fav && (o.homeMoneyline != null || o.awayMoneyline != null) && <div className="tile"><span className="label">Moneyline</span><span style={{ fontSize: 19 }}>{teamName(g[fav].abbr)} {moneyline(o[fav === 'home' ? 'homeMoneyline' : 'awayMoneyline'])} · {teamName(g[dog].abbr)} {moneyline(o[dog === 'home' ? 'homeMoneyline' : 'awayMoneyline'])}</span></div>}
-          <span className="note">For information only.</span>
-        </section>
+      {g.status !== 'postponed' && (
+        <PadCard title="Kickoff">
+          <Countdown3 iso={g.kickoff} now={now} />
+          <div className="kv"><span>Date</span><b>{day}, {kickoffTime(g.kickoff)}</b></div>
+          {venue && <div className="kv"><span>Venue</span><b>{venue}{g.weather ? (g.weather.dome ? ' · indoors' : ' · outdoors') : ''}</b></div>}
+          <WatchOn tv={g.tv} big />
+        </PadCard>
       )}
 
-      {(g.lineups.away.length > 0 || g.lineups.home.length > 0) && (
-        <section className="card pad" aria-label="Starting lineups">
-          <span className="card-title">Starting lineups</span>
-          <div className="teampick" role="tablist" aria-label="Pick a team">
-            {(['away', 'home'] as const).map((side) => {
-              const tm = team(g[side].abbr);
-              const on = tab === side;
-              return (
-                <button key={side} role="tab" aria-selected={on} onClick={() => setTab(side)}
-                  style={on ? { background: `radial-gradient(120% 140% at 0% 0%, ${tm.color}CC 0%, ${tm.color} 50%, #0B0A1C 140%)`, borderColor: tm.color } : undefined}>
-                  <span className="badge" style={{ width: 42, height: 42, borderRadius: 13, fontSize: 13, background: on ? '#FFFFFF' : tm.color, color: on ? tm.color : tm.text }}>{tm.abbr}</span>
-                  {tm.name}
-                </button>
-              );
-            })}
-          </div>
-          <span className="sub">Expected starters on offense. Confirmed about 90 minutes before kickoff.</span>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {lineup.length ? lineup.map((p, i) => (
-              <div key={`${p.pos}-${i}`} style={{ padding: '12px 0', borderTop: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ width: 104, fontSize: 15, fontWeight: 700, color: 'var(--muted)' }}>{posWords(p.pos)}</span>
-                <span style={{ flex: 1, fontSize: 18, fontWeight: 700 }}>{p.name}</span>
-                {p.status && <span className={`status-pill ${p.status === 'Questionable' ? 's-q' : p.status === 'Out' || p.status === 'Doubtful' || p.status === 'IR' ? 's-out' : 's-ok'}`}>{injuryWords(p.status)}</span>}
+      <PadCard title="Expected starters" right={hasLineups ? <button className="link" style={{ background: 'none', border: 0, padding: 0 }} onClick={onLineups}>Full lineups</button> : undefined}>
+        {hasLineups ? (['away', 'home'] as const).map((side) => (
+          <div key={side}>
+            <div className="lu-team"><Badge abbr={g[side].abbr} size={24} />{teamName(g[side].abbr)}</div>
+            {g.lineups[side].slice(0, 8).map((p, i) => (
+              <div className="lu-row" key={`${p.pos}-${i}`} style={i === 0 ? { background: '#FFF6F0' } : undefined}>
+                <span className="p">{p.pos}</span><span>{p.name}</span>
+                {p.status ? <span className={`status-pill ${injuryClass(p.status)}`}>{injuryWords(p.status)}</span> : <span />}
               </div>
-            )) : <p className="sub">Lineup not available yet.</p>}
+            ))}
           </div>
-        </section>
-      )}
+        )) : <span className="sub">Lineups aren't available from our data provider yet. They usually appear a few days before kickoff and are confirmed about 90 minutes before.</span>}
+      </PadCard>
 
       <Card title="Injury report"><InjuryRows list={g.injuries} /></Card>
-      <FormCard g={g} standings={standings} title="Last 5 games" season />
+      <RecentCard g={g} standings={standings} />
+      {!stale && <ChanceCard g={g} />}
+      {!stale && <BetCard g={g} />}
+      <WeatherCard g={g} />
     </>
   );
 }
 
+function RecentCard({ g, standings }: { g: GameDetail; standings: Standing[] | null }) {
+  const rows = (['away', 'home'] as const).map((side) => ({ side, s: standings?.find((x) => x.team === g[side].abbr) })).filter((r) => r.s);
+  if (!rows.length) return null;
+  return (
+    <Card title="Recent results">
+      <div style={{ padding: '0 16px 4px' }}>
+        {rows.map(({ side, s }) => (
+          <div className="recent" key={side}>
+            <div className="hd"><Badge abbr={g[side].abbr} size={24} /><b>{teamName(g[side].abbr)}</b><em>{record(s!.w, s!.l, s!.t)}</em><FormBoxes s={s} /></div>
+            <span className="sub">{streakText(s!.streak)} · {s!.pf} points scored, {s!.pa} allowed</span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function Lineups({ g }: { g: GameDetail }) {
+  return (
+    <>
+      <section className="callout-m"><small>Lineups</small><p>Expected starters from each team's depth chart. Final lineups post about 90 minutes before kickoff.</p></section>
+      {(['away', 'home'] as const).map((side) => (
+        <PadCard key={side} title={`${team(g[side].abbr).city} ${team(g[side].abbr).name}`}>
+          {g.lineups[side].length ? g.lineups[side].map((p, i) => (
+            <div className="lu-row" key={`${p.pos}-${i}`}>
+              <span className="p">{p.pos}</span><span>{p.name}<span className="sub" style={{ display: 'block', fontSize: 13 }}>{posWords(p.pos)}</span></span>
+              {p.status ? <span className={`status-pill ${injuryClass(p.status)}`}>{injuryWords(p.status)}</span> : <span />}
+            </div>
+          )) : <span className="sub">Not available yet. Lineups usually appear a few days before kickoff.</span>}
+        </PadCard>
+      ))}
+    </>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Live
 // ---------------------------------------------------------------------------
 
-function Live({ g, standings, stale }: { g: GameDetail; standings: Standing[] | null; stale: boolean }) {
+function Live({ g, stale }: { g: GameDetail; stale: boolean }) {
   const s = g.situation;
-  const sit = situationText(g);
   const deltas = wpDeltas(g.plays, g.pregameHomeWinProb);
   const hp = g.homeWinProb ?? 0.5;
-  const leader = hp >= 0.5 ? g.home.abbr : g.away.abbr;
-  const lp = Math.round(Math.max(hp, 1 - hp) * 100);
   const pre = g.pregameHomeWinProb;
+  const sentence = plainSituation(g);
   return (
     <>
-      {g.summary && (
-        <PadCard title="The story so far">
-          <p className="prose">{g.summary}</p>
-          <span className="note">Written automatically from the play-by-play</span>
-        </PadCard>
-      )}
-
-      {sit && g.possession && (
-        <PadCard label="Game situation">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-            <span style={{ fontSize: 22, fontWeight: 700 }}>{sit.replace(' at ', ' · ')}</span>
-            <span className="mono muted" style={{ fontSize: 11 }}>{g[g.possession].abbr} DRIVE</span>
+      <PadCard title="What's happening">
+        {sentence && <p style={{ fontSize: 18, lineHeight: 1.45, fontWeight: 600 }}>{sentence}</p>}
+        {g.possession && <Field g={g} />}
+        {s?.drivePlays != null && (
+          <div className="drivestats" aria-label={`This drive: ${s.drivePlays} plays, ${s.driveYards ?? 0} yards, ${s.driveTime ?? ''}`}>
+            <div><b>{s.drivePlays}</b><span>PLAYS</span></div>
+            <div><b>{s.driveYards ?? 0}</b><span>YARDS</span></div>
+            <div><b>{s.driveTime ?? '–'}</b><span>DRIVE TIME</span></div>
           </div>
-          <Field g={g} />
-          {s?.drivePlays != null && (
-            <div className="drivestats" aria-label={`This drive: ${s.drivePlays} plays, ${s.driveYards ?? 0} yards, ${s.driveTime ?? ''}`}>
-              <div><b>{s.drivePlays}</b><span>plays</span></div>
-              <div><b>{s.driveYards ?? 0}</b><span>yards</span></div>
-              <div><b>{s.driveTime ?? '–'}</b><span>drive time</span></div>
-            </div>
-          )}
-        </PadCard>
-      )}
+        )}
+      </PadCard>
+
+      {g.summary && <section className="callout-m" aria-label="The story so far"><small>The story so far</small><p>{g.summary}</p></section>}
+
+      <Card title="Latest plays" right={<a href={href.plays(g.id)}>Every play</a>}>
+        {g.plays.length ? g.plays.slice(0, 6).map((p) => <PlayRow key={p.id} p={p} delta={stale ? undefined : deltas.get(p.id)} />) : <p className="empty">Plays will appear here.</p>}
+      </Card>
 
       {stale ? (
         <PadCard title="Chance to win"><span className="sub">Back when you're online. We hide it so you never see an out-of-date number as if it were live.</span></PadCard>
       ) : (
-        <PadCard title="Chance to win" right={<span style={{ fontSize: 15, fontWeight: 700 }}>{leader} {lp}%</span>}>
-          <WPChart series={g.winProbSeries} g={g} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)', gap: 8 }}>
-            <span>{g.home.abbr} side ↑</span>
-            {pre != null && <span>Pre-game {pre >= 0.5 ? g.home.abbr : g.away.abbr} {Math.round(Math.max(pre, 1 - pre) * 100)}%</span>}
-            <span>{g.away.abbr} side ↓</span>
-          </div>
-        </PadCard>
+        <>
+          <ChanceCard g={g} note={`Updates after every play.${pre != null ? ` Before kickoff: ${pre >= 0.5 ? teamName(g.home.abbr) : teamName(g.away.abbr)} ${Math.round(Math.max(pre, 1 - pre) * 100)}%.` : ''}`} />
+          <PadCard title="Win probability over time">
+            <WPChart series={g.winProbSeries} g={g} />
+            <span className="note">Above the line: {teamName(g.home.abbr)} more likely to win. Below: {teamName(g.away.abbr)}. Now {hp >= 0.5 ? teamName(g.home.abbr) : teamName(g.away.abbr)} {Math.round(Math.max(hp, 1 - hp) * 100)}%.</span>
+          </PadCard>
+        </>
       )}
+      <PlayerCard g={g} title="Player stats" count={6} />
+      {!stale && <BetCard g={g} live />}
+      <WeatherCard g={g} />
+    </>
+  );
+}
 
-      <OddsWeather g={g} stale={stale} live />
-
-      <Card title="Latest plays" right={<span className="sub">{teamName(g.home.abbr)} chance</span>}>
-        {g.plays.length ? g.plays.slice(0, 5).map((p) => <PlayRow key={p.id} p={p} delta={stale ? undefined : deltas.get(p.id)} />) : <p className="empty">Plays will appear here.</p>}
-        <LinkButton to={href.plays(g.id)}>See every play</LinkButton>
-      </Card>
-
-      <PlayerCard g={g} title="Players to watch" count={4} />
+function BoxScore({ g, standings }: { g: GameDetail; standings: Standing[] | null }) {
+  return (
+    <>
+      <PadCard title="Scoring by quarter"><LineScore g={g} half={g.status === 'halftime'} /></PadCard>
       <TeamStats g={g} />
+      <PlayerCard g={g} title="Player stats" count={10} />
       <FormCard g={g} standings={standings} />
       <Card title="Injuries"><InjuryRows list={g.injuries} /></Card>
     </>
@@ -483,7 +535,8 @@ function Halftime({ g, stale }: { g: GameDetail; stale: boolean }) {
           ))}
         </Card>
       )}
-      <OddsWeather g={g} stale={stale} live />
+      {!stale && <BetCard g={g} live />}
+      <WeatherCard g={g} />
     </>
   );
 }
