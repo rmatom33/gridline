@@ -4,7 +4,7 @@ import { cached, useNow, useOnline, usePoll } from '../data/usePoll';
 import { href } from '../data/router';
 import { team, TEAMS } from '../shared/teams';
 import { useState } from 'react';
-import { clockTime, countdownText, etDateKey, spreadLabel } from '../shared/format';
+import { clockTime, countdownText, etDateKey } from '../shared/format';
 import { Badge, Card, Countdown3, ErrorCard, Footer, LinkButton, Nav, OfflineBanner, Skeleton, situationText, teamName, TopBar, WatchOn, WinNums } from '../ui/parts';
 import { GameCard, isLive, liveStatus, plainSituation, weatherLine } from '../ui/GameRow';
 
@@ -131,7 +131,12 @@ function NextMatchup({ g, now, standings }: { g: Game; now: number; standings: S
     return s ? `${s.w}-${s.l}${s.t ? `-${s.t}` : ''}` : fb ?? '';
   };
   const day = new Date(g.kickoff).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'America/New_York' });
-  const meta = [`${day}, ${clockTime(g.kickoff)}`, spreadLabel(g) ? `Favorite ${spreadLabel(g)}` : null, g.odds?.total != null ? `O/U ${g.odds.total}` : null, weatherLine(g)].filter(Boolean).join(' · ');
+  const sp = g.odds?.spread;
+  const favorite = sp == null ? null : sp === 0 ? 'Even matchup' : `${teamName(sp < 0 ? g.home.abbr : g.away.abbr)} −${Math.abs(sp)}`;
+  const cells: [string, string | null][] = [
+    [`KICKOFF · ${day.split(', ').slice(1).join(' ').toUpperCase()}`, `${day.split(',')[0].slice(0, 3)} · ${clockTime(g.kickoff)}`],
+    ['FAVORITE', favorite], ['TOTAL POINTS', g.odds?.total != null ? `O/U ${g.odds.total}` : null], ['WEATHER', weatherLine(g)]
+  ];
   return (
     <section className="card nextm" aria-label={`Next matchup: ${teamName(g.away.abbr)} at ${teamName(g.home.abbr)}`}>
       <span className="kk">NEXT MATCHUP</span>
@@ -140,7 +145,7 @@ function NextMatchup({ g, now, standings }: { g: Game; now: number; standings: S
         <span className="at">AT</span>
         <span><Badge abbr={g.home.abbr} size={48} /><b>{teamName(g.home.abbr)}</b><small>{rec(g.home.abbr, g.home.record)}</small></span>
       </a>
-      <span className="meta">{meta}</span>
+      <div className="nm-grid">{cells.map(([k, v]) => <div key={k}><span>{k}</span><b>{v ?? '–'}</b></div>)}</div>
       <WatchOn tv={g.tv} big />
       <Countdown3 iso={g.kickoff} now={now} />
       <a className="btn primary" href={href.game(g.id)}>Preview the game</a>

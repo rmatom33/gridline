@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { data } from '../data/source';
 import { cached, useOnline, usePoll } from '../data/usePoll';
 import { href } from '../data/router';
@@ -23,20 +23,12 @@ export function TeamPage({ abbr }: { abbr: string }) {
     .sort((a, b) => winPct(b) - winPct(a) || (b.pf - b.pa) - (a.pf - a.pa));
   const lg = d?.liveGame;
   const ng = d?.nextGame;
-  const [followed, setFollowed] = useState(() => { try { return localStorage.getItem('gridline.follow') === abbr; } catch { return false; } });
-  const toggleFollow = () => {
-    const next = !followed;
-    setFollowed(next);
-    try { if (next) localStorage.setItem('gridline.follow', abbr); else localStorage.removeItem('gridline.follow'); } catch { /* storage unavailable */ }
-  };
 
   return (
     <div className="app">
       <header className="top">
         <OfflineBanner online={online} stale={q.stale} updatedAt={q.updatedAt} retry={q.refresh} />
-        <CenterBar fallback={href.standings(t.conf)} backLabel="Back to standings" right={
-          <button className="star" aria-pressed={followed} onClick={toggleFollow} aria-label={followed ? `Following the ${t.name}` : `Follow the ${t.name}`}><Icon name="star" size={24} stroke={2.2} /></button>
-        }>
+        <CenterBar fallback={href.standings(t.conf)} backLabel="Back to standings">
           <span className="lbl">TEAM</span>
         </CenterBar>
         <div className="team-id">

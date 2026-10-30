@@ -36,8 +36,8 @@
   --dim-on-navy: #8A8E99;
   --hdr: radial-gradient(120% 80% at 50% 0%, #2A1C14 0%, #141519 55%, #101114 100%);
   --shadow: 0 2px 6px rgba(16, 17, 20, 0.05);
-  --display: 'Barlow Condensed', 'Arial Narrow', Inter, sans-serif;
-  --sans: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --display: 'Barlow Condensed', 'Benton Sans', Inter, Roboto, sans-serif;
+  --sans: 'Benton Sans', BentonSans, Inter, Roboto, 'Segoe UI', Arial, sans-serif;
   --mono: var(--sans);
   color-scheme: light;
 }
@@ -562,7 +562,7 @@ main.page.tight { gap: 14px; }
 .mpills .rd { width: 7px; height: 7px; border-radius: 4px; background: var(--live); }
 
 /* Section headings */
-.sect-h { display: flex; align-items: center; justify-content: space-between; padding: 6px 4px 0; }
+.sect-h { display: flex; align-items: center; justify-content: flex-start; gap: 10px; padding: 6px 4px 0; }
 .sect-h h2 { margin: 0; display: flex; align-items: center; gap: 8px; font-family: var(--display); font-weight: 800; font-size: 26px; letter-spacing: .5px; text-transform: uppercase; }
 .sect-h .cnt { min-width: 26px; height: 26px; padding: 0 8px; border-radius: 13px; background: var(--text); color: #FFFFFF; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
 .sect-h .lv { width: 22px; height: 22px; border-radius: 6px; background: var(--live); display: flex; align-items: center; justify-content: center; }
@@ -835,3 +835,12 @@ main.page { padding-bottom: 8px; }
 .gh-side .hb { font-size: 10px; padding: 0 6px; gap: 4px; letter-spacing: .2px; }
 .card .kicker { color: var(--muted); font-size: 13px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; }
 .div-chips .badge, .chip .badge { font-size: 8px !important; }
+
+.nm-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.nm-grid > div { min-width: 0; border-radius: 10px; background: var(--panel2); padding: 8px 10px; display: flex; flex-direction: column; gap: 1px; }
+.nm-grid span { font-size: 11px; font-weight: 800; letter-spacing: .8px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nm-grid b { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Next matchup: teams mirrored around a centered "AT" so both names sit the same distance from it */
+.nextm .vs { grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr); column-gap: 14px; }
+.nextm .vs > span:first-child { align-items: flex-end; text-align: right; }
+.nextm .vs .at { padding-top: 0; height: 48px; display: flex; align-items: center; justify-content: center; letter-spacing: .8px; }
