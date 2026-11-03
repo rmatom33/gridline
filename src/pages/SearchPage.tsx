@@ -8,7 +8,7 @@ import { Badge, CenterBar, GoArrow, Icon, Nav, teamName } from '../ui/parts';
 import { isLive, liveStatus } from '../ui/GameRow';
 
 // Recent teams are a per-device convenience only; the page works without storage.
-const KEY = 'gridline.recentTeams';
+const KEY = 'scoreboardrecap.recentTeams';
 function readRecent(): string[] {
   try { return (JSON.parse(localStorage.getItem(KEY) ?? '[]') as string[]).filter((a) => TEAMS[a]).slice(0, 6); } catch { return []; }
 }

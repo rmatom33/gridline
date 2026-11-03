@@ -292,7 +292,7 @@ function ShareButton({ g }: { g: GameDetail }) {
   const onClick = async () => {
     const url = window.location.href;
     try {
-      if (navigator.share) await navigator.share({ title: 'Gridline', text, url });
+      if (navigator.share) await navigator.share({ title: 'Scoreboardrecap', text, url });
       else { await navigator.clipboard.writeText(`${text} ${url}`); setDone(true); setTimeout(() => setDone(false), 2000); }
     } catch { /* cancelled */ }
   };

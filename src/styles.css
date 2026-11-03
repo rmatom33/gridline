@@ -1,5 +1,5 @@
-/* Gridline · live-site theme: dark header, orange accents, condensed caps.
-   Tokens match the "Gridline · full site · latest" design canvas. */
+/* Scoreboardrecap · live-site theme: dark header, orange accents, condensed caps.
+   Tokens match the "Scoreboardrecap · full site · latest" design canvas. */
 :root {
   --bg: #F1F2F5;
   --panel: #FFFFFF;
@@ -844,3 +844,8 @@ main.page { padding-bottom: 8px; }
 .nextm .vs { grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr); column-gap: 14px; }
 .nextm .vs > span:first-child { align-items: flex-end; text-align: right; }
 .nextm .vs .at { padding-top: 0; height: 48px; display: flex; align-items: center; justify-content: center; letter-spacing: .8px; }
+/* Next matchup: each team centered in its own column */
+.nextm .vs > span, .nextm .vs > span:first-child { align-items: center; text-align: center; }
+/* Longer wordmark: SCOREBOARD RECAP */
+.logo .wm { font-size: 23px; letter-spacing: .4px; white-space: nowrap; }
+.mbar .l { min-width: 0; }

@@ -1,4 +1,4 @@
-// The Gridline JSON API, shared by the Node server (server/index.ts, used
+// The Scoreboardrecap JSON API, shared by the Node server (server/index.ts, used
 // locally and on Render) and the Vercel function (server/handler.ts).
 //   GET /api/scoreboard?week=8
 //   GET /api/game/:id
@@ -23,7 +23,7 @@ const source: DataSource = provider === 'sportsdataio'
     })
   : createSampleSource();
 
-// Odds: by default Gridline shows the betting line that comes with the
+// Odds: by default Scoreboardrecap shows the betting line that comes with the
 // SportsDataIO scores. Set ODDS_PROVIDER=theoddsapi to use the-odds-api.com instead.
 export const oddsProvider = (process.env.ODDS_PROVIDER ?? 'sportsdataio').toLowerCase();
 const odds = createOddsClient({

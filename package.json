@@ -1,9 +1,9 @@
 {
-  "name": "gridline",
+  "name": "scoreboardrecap",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Gridline - mobile-first NFL live scores, game center, schedule and standings.",
+  "description": "Scoreboardrecap - mobile-first NFL live scores, game center, schedule and standings.",
   "scripts": {
     "dev": "vite",
     "dev:api": "tsx watch server/index.ts",

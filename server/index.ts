@@ -1,4 +1,4 @@
-// Gridline Node server: the API (server/api.ts) plus the built site from ./dist.
+// Scoreboardrecap Node server: the API (server/api.ts) plus the built site from ./dist.
 // Used locally and on Render. On Vercel, server/handler.ts is used instead.
 //   GET /api/scoreboard?week=8
 //   GET /api/game/:id
@@ -32,7 +32,7 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://localhost');
 
   if (!HAS_DIST) {
-    res.writeHead(404, { 'Content-Type': 'text/plain' }).end('Gridline API is running. Run `npm run build` to serve the site here, or `npm run dev` while developing.');
+    res.writeHead(404, { 'Content-Type': 'text/plain' }).end('Scoreboardrecap API is running. Run `npm run build` to serve the site here, or `npm run dev` while developing.');
     return;
   }
   // Static files
@@ -57,6 +57,6 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Gridline (${describe()}) on http://localhost:${PORT}`);
+  console.log(`Scoreboardrecap (${describe()}) on http://localhost:${PORT}`);
   if (!HAS_DIST) console.log('No dist/ folder yet: run `npm run build` to serve the site from this server.');
 });

@@ -55,7 +55,7 @@ export function HomePage() {
         <TopBar />
         <div className="mhero">
           <span className="kick">{sb && <span className="wk-tag">Week {sb.week}</span>}<span>{longDay(now)}</span></span>
-          <h1>{!sb ? 'Gridline' : gameDay ? 'Game day' : 'No games today'}</h1>
+          <h1>{!sb ? 'Scoreboardrecap' : gameDay ? 'Game day' : 'No games today'}</h1>
           <p>{summary}</p>
         </div>
         {sb && (

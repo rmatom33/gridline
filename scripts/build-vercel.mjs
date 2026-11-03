@@ -1,4 +1,4 @@
-// Builds Gridline for Vercel using the Build Output API
+// Builds Scoreboardrecap for Vercel using the Build Output API
 // (https://vercel.com/docs/build-output-api/v3). Run by `npm run build:vercel`,
 // which Vercel calls via vercel.json. Produces:
 //   .vercel/output/static/              the site (from dist/)

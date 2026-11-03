@@ -104,9 +104,9 @@ export function SampleBadge() {
 
 export function Logo({ to = href.home }: { to?: string }) {
   return (
-    <a className="logo" href={to} aria-label="Gridline home">
+    <a className="logo" href={to} aria-label="Scoreboardrecap home">
       <span className="mk" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.6" strokeLinecap="round"><path d="M5 6h14M5 12h14M5 18h14" /></svg></span>
-      <span className="wm">GRID<span>LINE</span></span>
+      <span className="wm">SCOREBOARD<span>RECAP</span></span>
     </a>
   );
 }
@@ -180,7 +180,6 @@ export function Nav({ active }: { active: 'home' | 'games' | 'standings' | 'none
     <>
       <footer className="site-footer">
         <Logo />
-        <p>Gridline is an independent fan site. It is not affiliated with, endorsed by or sponsored by the NFL, its teams or any broadcaster. Team names are used only to identify the teams playing. {IS_SAMPLE ? 'This preview shows made-up games and players.' : 'Live scores and stats are provided by SportsData.io.'}</p>
       </footer>
       <nav className="nav" aria-label="Main">
         <div className="nav-inner">
@@ -228,7 +227,7 @@ export function CenterBar({ fallback, backLabel, right, children }: { fallback: 
 export function Footer({ odds = true }: { odds?: boolean }) {
   return (
     <p className="footer-note fine">
-      {odds ? 'Odds for information only. 21+. Gambling problem? Call 1-800-GAMBLER. ' : ''}Chance to win is calculated by Gridline.
+      {odds ? 'Odds for information only. 21+. Gambling problem? Call 1-800-GAMBLER. ' : ''}Chance to win is calculated by Scoreboardrecap.
     </p>
   );
 }

@@ -1,4 +1,4 @@
-# Gridline
+# Scoreboardrecap
 
 Mobile-first NFL live tracker: home spotlight, live scores and game situation, win probability, odds, weather, play-by-play by drive, player and team stats, lineups, injuries, schedule, standings with form and streaks, team pages and search.
 
@@ -14,10 +14,10 @@ Vercel builds the site in the cloud, so you don't need Node.js or anything else 
 
 ### 1. Put the code on GitHub
 
-1. Right-click `gridline.zip` → **Extract All**.
-2. Create a free account at **github.com** → **New repository** → name it `gridline` → **Private** → **Create repository**.
+1. Right-click `scoreboardrecap.zip` → **Extract All**.
+2. Create a free account at **github.com** → **New repository** → name it `scoreboardrecap` → **Private** → **Create repository**.
 3. On the new repository page, click **uploading an existing file**.
-4. Open the extracted `gridline` folder (the one containing `package.json`), select **everything inside it**, and drag it onto the GitHub page. Folders upload too.
+4. Open the extracted `scoreboardrecap` folder (the one containing `package.json`), select **everything inside it**, and drag it onto the GitHub page. Folders upload too.
    - Make sure `package.json`, `vercel.json`, `index.html` and the `src`, `server`, `scripts` and `public` folders are listed.
    - Never upload a `.env` file. The zip doesn't include one.
 5. Click **Commit changes**.
@@ -25,7 +25,7 @@ Vercel builds the site in the cloud, so you don't need Node.js or anything else 
 ### 2. Deploy on Vercel
 
 1. Sign in at **vercel.com** with **Continue with GitHub**.
-2. **Add New → Project** → find `gridline` → **Import**. If it isn't listed, click **Adjust GitHub App Permissions** and allow the repository.
+2. **Add New → Project** → find `scoreboardrecap` → **Import**. If it isn't listed, click **Adjust GitHub App Permissions** and allow the repository.
 3. Leave Framework Preset as **Other** and leave the build settings alone (they come from `vercel.json`).
 4. Open **Environment Variables** and add:
 
@@ -36,7 +36,7 @@ Vercel builds the site in the cloud, so you don't need Node.js or anything else 
    | `SPORTSDATAIO_SEASON_TYPE` | `REG` |
 
    Skip these three for a first deploy on sample data.
-5. Click **Deploy**. After 1–2 minutes you get a URL like `https://gridline-yourname.vercel.app`.
+5. Click **Deploy**. After 1–2 minutes you get a URL like `https://scoreboardrecap-yourname.vercel.app`.
 
 ### 3. Check it's working
 

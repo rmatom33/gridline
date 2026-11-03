@@ -53,7 +53,7 @@ export const href = {
   search: '#search'
 };
 
-/** Back button: return to the previous Gridline page if there is one, otherwise go to `fallback`. */
+/** Back button: return to the previous Scoreboardrecap page if there is one, otherwise go to `fallback`. */
 let navigated = false;
 if (typeof window !== 'undefined') window.addEventListener('hashchange', () => { navigated = true; });
 

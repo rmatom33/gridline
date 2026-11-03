@@ -65,7 +65,7 @@ export interface Game {
   odds?: Odds;
   weather?: Weather;
   venue?: Venue;
-  /** Home win probability 0–1 (computed by Gridline). */
+  /** Home win probability 0–1 (computed by Scoreboardrecap). */
   homeWinProb?: number;
   lastPlay?: string;
   overtime?: boolean;
@@ -199,7 +199,7 @@ export interface Schedule {
   games: Game[];
 }
 
-/** Anything that can serve Gridline data: the sample replay, or a real provider. */
+/** Anything that can serve Scoreboardrecap data: the sample replay, or a real provider. */
 export interface DataSource {
   scoreboard(week?: number): Promise<Scoreboard>;
   game(id: string): Promise<GameDetail>;
