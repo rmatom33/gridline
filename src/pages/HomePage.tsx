@@ -5,7 +5,7 @@ import { href } from '../data/router';
 import { team, TEAMS } from '../shared/teams';
 import { useState } from 'react';
 import { clockTime, countdownText, etDateKey } from '../shared/format';
-import { Badge, Card, Countdown3, ErrorCard, Footer, LinkButton, Nav, OfflineBanner, Skeleton, situationText, teamName, TopBar, WatchOn, WinNums } from '../ui/parts';
+import { Badge, Card, ErrorCard, Footer, LinkButton, Nav, OfflineBanner, Skeleton, situationText, teamName, TopBar, WatchOn, WinNums } from '../ui/parts';
 import { GameCard, isLive, liveStatus, plainSituation, weatherLine } from '../ui/GameRow';
 
 export const pollEvery = (sb: Scoreboard | null) => (sb?.games.some(isLive) ? 10_000 : 60_000);
@@ -25,7 +25,7 @@ type Filter = 'all' | 'live' | 'later' | 'done';
 
 export function HomePage() {
   const online = useOnline();
-  const now = useNow(1_000);
+  const now = useNow(30_000);
   const [filter, setFilter] = useState<Filter>('all');
   const q = usePoll(() => data.scoreboard(), pollEvery, []);
   const st = usePoll(() => cached('standings', () => data.standings()), 0, []);
@@ -90,7 +90,7 @@ export function HomePage() {
           )}
           {filter === 'live' && !live.length && <p className="byes">No games are live right now.</p>}
 
-          {show('later') && !live.length && upNext && upNext.status === 'scheduled' && <NextMatchup g={upNext} now={now} standings={st.data} />}
+          {show('later') && !live.length && upNext && upNext.status === 'scheduled' && <NextMatchup g={upNext} standings={st.data} />}
 
           {show('later') && upcoming.length > 0 && (
             <section className="glist" aria-label={gameDay ? 'Later' : 'Coming up'}>
@@ -125,7 +125,7 @@ export function HomePage() {
   );
 }
 
-function NextMatchup({ g, now, standings }: { g: Game; now: number; standings: Standing[] | null }) {
+function NextMatchup({ g, standings }: { g: Game; standings: Standing[] | null }) {
   const rec = (abbr: string, fb?: string) => {
     const s = standings?.find((x) => x.team === abbr);
     return s ? `${s.w}-${s.l}${s.t ? `-${s.t}` : ''}` : fb ?? '';
@@ -147,7 +147,6 @@ function NextMatchup({ g, now, standings }: { g: Game; now: number; standings: S
       </a>
       <div className="nm-grid">{cells.map(([k, v]) => <div key={k}><span>{k}</span><b>{v ?? '–'}</b></div>)}</div>
       <WatchOn tv={g.tv} big />
-      <Countdown3 iso={g.kickoff} now={now} />
       <a className="btn primary" href={href.game(g.id)}>Preview the game</a>
     </section>
   );

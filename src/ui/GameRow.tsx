@@ -148,7 +148,7 @@ export function GameCard({ g, standings, showDay = true }: { g: Game; standings?
           );
         })}
       </div>
-      <WatchOn tv={g.tv} label={done ? 'Aired on' : 'Watch on'} />
+      {!done && <WatchOn tv={g.tv} />}
       {live ? (
         <div className="mc-foot live">
           <span className="sit">{g.status === 'halftime' ? <span style={{ color: 'var(--text)' }}>Halftime</span> : sit ?? 'In progress'}{g.situation?.redZone && <span className="rz">RED ZONE</span>}</span>
