@@ -862,3 +862,15 @@ body { background: var(--bg); overscroll-behavior-y: none; }
 
 /* Wordmark only (no icon square) */
 .logo .wm { font-size: 26px; letter-spacing: .5px; }
+
+/* Empty filter states (no live games, no kickoffs left, no finals yet) */
+.empty-m { padding: 26px 18px 18px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; }
+.em-ic { width: 56px; height: 56px; border-radius: 28px; display: flex; align-items: center; justify-content: center; background: var(--tint-bg); color: var(--accent-2); border: 1px solid var(--tint-bd); }
+.em-ic.live { background: #FFF0F0; color: var(--live); border-color: #F8C9CB; }
+.empty-m h3 { margin: 6px 0 0; font-family: var(--display); font-weight: 800; font-size: 26px; line-height: 1.1; text-transform: uppercase; letter-spacing: .5px; }
+.empty-m p { margin: 0; max-width: 300px; font-size: 15px; line-height: 1.5; color: var(--muted); }
+.em-game { margin-top: 6px; width: 100%; box-sizing: border-box; border-radius: 12px; background: var(--panel2); border: 1px solid var(--border); padding: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--text) !important; white-space: nowrap; }
+.em-game b { font-size: 16px; overflow: hidden; text-overflow: ellipsis; }
+.em-game span { font-size: 13px; font-weight: 800; color: var(--muted); text-transform: uppercase; }
+.em-acts { margin-top: 8px; width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.em-acts .btn { width: 100%; }

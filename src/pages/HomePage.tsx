@@ -88,7 +88,12 @@ export function HomePage() {
               {live.filter((g) => g !== spot).map((g) => <GameCard key={g.id} g={g} standings={st2} />)}
             </section>
           )}
-          {filter === 'live' && !live.length && <p className="byes">No games are live right now.</p>}
+          {filter === 'live' && !live.length && (
+            <EmptyState kind="live" title="No games live right now"
+              text={upNext ? `Next kickoff ${shortDayTime(upNext.kickoff)} ET, ${countdownText(upNext.kickoff, now)}. Scores show here the moment it starts.` : 'Scores show here the moment a game kicks off.'}
+              game={upNext}
+              actions={[upcoming.length ? { label: 'See upcoming games', go: () => setFilter('later') } : null, finals.length ? { label: 'See final scores', go: () => setFilter('done') } : null]} />
+          )}
 
           {show('later') && !live.length && upNext && upNext.status === 'scheduled' && <NextMatchup g={upNext} standings={st.data} />}
 
@@ -98,7 +103,10 @@ export function HomePage() {
               {upcoming.map((g) => <GameCard key={g.id} g={g} standings={st2} />)}
             </section>
           )}
-          {filter === 'later' && !upcoming.length && <p className="byes">No more kickoffs this week.</p>}
+          {filter === 'later' && !upcoming.length && (
+            <EmptyState kind="later" title="No more kickoffs this week" text="Next week's games are on the Games tab."
+              actions={[{ label: 'See next week', href: href.games }, finals.length ? { label: 'See final scores', go: () => setFilter('done') } : null]} />
+          )}
 
           {show('done') && finals.length > 0 && (
             <section className="glist" aria-label="Final scores">
@@ -106,7 +114,10 @@ export function HomePage() {
               {finals.map((g) => <GameCard key={g.id} g={g} standings={st2} />)}
             </section>
           )}
-          {filter === 'done' && !finals.length && <p className="byes">No games have finished yet this week.</p>}
+          {filter === 'done' && !finals.length && (
+            <EmptyState kind="done" title="No final scores yet" text="Results appear here as soon as each game ends."
+              actions={[upcoming.length ? { label: 'See upcoming games', go: () => setFilter('later') } : null, live.length ? { label: 'See live games', go: () => setFilter('live') } : null]} />
+          )}
 
           {!games.length && (
             <Card title="This week">
@@ -122,6 +133,37 @@ export function HomePage() {
       )}
       <Nav active="home" />
     </div>
+  );
+}
+
+type Act = { label: string; go?: () => void; href?: string } | null;
+const shortDayTime = (iso: string) => `${new Date(iso).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' })} ${clockTime(iso)}`;
+
+/** Friendly card when a filter has nothing to show: icon, what's going on, what's next, and where to go. */
+function EmptyState({ kind, title, text, game, actions }: { kind: 'live' | 'later' | 'done'; title: string; text: string; game?: Game; actions: Act[] }) {
+  const acts = actions.filter((a): a is NonNullable<Act> => !!a);
+  return (
+    <section className="card empty-m" aria-live="polite">
+      <span className={`em-ic ${kind}`} aria-hidden="true">
+        {kind === 'live' ? <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="3" /><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14" /></svg>
+          : kind === 'later' ? <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
+          : <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3" /></svg>}
+      </span>
+      <h3>{title}</h3>
+      <p>{text}</p>
+      {game && (
+        <a className="em-game" href={href.game(game.id)}>
+          <Badge abbr={game.away.abbr} size={30} /><b>{teamName(game.away.abbr)}</b><span>at</span><b>{teamName(game.home.abbr)}</b><Badge abbr={game.home.abbr} size={30} />
+        </a>
+      )}
+      {acts.length > 0 && (
+        <div className="em-acts">
+          {acts.map((a, i) => a.href
+            ? <a key={a.label} className={`btn ${i === 0 ? 'primary' : 'tint'}`} href={a.href}>{a.label}</a>
+            : <button key={a.label} className={`btn ${i === 0 ? 'primary' : 'tint'}`} onClick={a.go}>{a.label}</button>)}
+        </div>
+      )}
+    </section>
   );
 }
 
