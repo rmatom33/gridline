@@ -859,3 +859,6 @@ body { background: var(--bg); overscroll-behavior-y: none; }
    The page reserves the bar's height so nothing is hidden behind it. */
 .nav { position: fixed; left: 0; right: 0; bottom: 0; margin-top: 0; z-index: 20; padding-bottom: env(safe-area-inset-bottom); transform: translateZ(0); }
 .app { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+
+/* Wordmark only (no icon square) */
+.logo .wm { font-size: 26px; letter-spacing: .5px; }

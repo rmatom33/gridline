@@ -105,7 +105,6 @@ export function SampleBadge() {
 export function Logo({ to = href.home }: { to?: string }) {
   return (
     <a className="logo" href={to} aria-label="Scoreboardrecap home">
-      <span className="mk" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.6" strokeLinecap="round"><path d="M5 6h14M5 12h14M5 18h14" /></svg></span>
       <span className="wm">SCOREBOARD<span>RECAP</span></span>
     </a>
   );
