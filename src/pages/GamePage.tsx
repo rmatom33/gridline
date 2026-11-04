@@ -129,8 +129,9 @@ function GameHeader({ g, standings, stale }: { g: GameDetail; standings: Standin
         )}
         {side('home')}
       </div>
-      <WatchOn tv={g.tv} label={final ? 'Aired on' : 'Watch on'} dark big style={{ margin: '14px 16px 16px' }} />
-      {!g.tv && <div style={{ height: 16 }} />}
+      {/* Past games don't show where they aired; only upcoming and live games get the network. */}
+      {!final && <WatchOn tv={g.tv} dark big style={{ margin: '14px 16px 16px' }} />}
+      {(final || !g.tv) && <div style={{ height: 16 }} />}
     </>
   );
 }
