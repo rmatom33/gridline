@@ -65,7 +65,6 @@ export function StandingsPage({ conf: initial }: { conf?: 'AFC' | 'NFC' }) {
             );
           })()}
           <p className="byes">Rank = league-wide ranking by record, then point difference. The green bar and number mark a playoff seed.</p>
-          <p className="footer-note fine">Seeds use a simplified tiebreak (record, then point differential), so they can differ from the official NFL order in close races.</p>
           <Footer odds={false} />
         </main>
       )}

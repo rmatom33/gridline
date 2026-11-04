@@ -849,3 +849,13 @@ main.page { padding-bottom: 8px; }
 /* Longer wordmark: SCOREBOARD RECAP */
 .logo .wm { font-size: 23px; letter-spacing: .4px; white-space: nowrap; }
 .mbar .l { min-width: 0; }
+
+/* Stop the page bouncing past the bottom bar on iPhone; any overscroll shows the dark nav colour, not a blank strip. */
+html { background: #15161B; overscroll-behavior-y: none; }
+body { background: var(--bg); overscroll-behavior-y: none; }
+
+/* Bottom bar: fixed to the screen edge. iPhone Safari leaves a sticky bar floating
+   mid-screen when its toolbar collapses; a fixed bar follows the real bottom edge.
+   The page reserves the bar's height so nothing is hidden behind it. */
+.nav { position: fixed; left: 0; right: 0; bottom: 0; margin-top: 0; z-index: 20; padding-bottom: env(safe-area-inset-bottom); transform: translateZ(0); }
+.app { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }

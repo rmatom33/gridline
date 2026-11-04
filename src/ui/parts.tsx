@@ -224,12 +224,9 @@ export function CenterBar({ fallback, backLabel, right, children }: { fallback: 
   );
 }
 
-export function Footer({ odds = true }: { odds?: boolean }) {
-  return (
-    <p className="footer-note fine">
-      {odds ? 'Odds for information only. 21+. Gambling problem? Call 1-800-GAMBLER. ' : ''}Chance to win is calculated by Scoreboardrecap.
-    </p>
-  );
+/** Small print under page content. Removed for now; kept as a no-op so pages don't need changing. */
+export function Footer(_props: { odds?: boolean }) {
+  return null;
 }
 
 // ---------- Offline / errors / loading ----------
