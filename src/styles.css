@@ -874,3 +874,51 @@ body { background: var(--bg); overscroll-behavior-y: none; }
 .em-game span { font-size: 13px; font-weight: 800; color: var(--muted); text-transform: uppercase; }
 .em-acts { margin-top: 8px; width: 100%; display: flex; flex-direction: column; gap: 8px; }
 .em-acts .btn { width: 100%; }
+
+/* Venue line under the teams, and the kickoff-weather chip */
+.venue-l { margin: -2px 14px 12px; display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; min-width: 0; }
+.venue-l svg { flex: none; color: #6B6F7A; }
+.venue-l > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.venue-l b { font-weight: 700; color: var(--text3); }
+.venue-l b.abroad { font-weight: 800; color: var(--accent); }
+.wx-chip { display: inline-flex; align-items: center; gap: 6px; }
+.nm-grid .wx-chip { font: inherit; }
+.nextm .kk { font-size: 15px; letter-spacing: .6px; }
+.nm-grid small { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nm-grid b { display: flex; align-items: center; gap: 6px; }
+/* Standings: view pills on their own row (fits "Playoff Standings" on small phones); no DIFF column */
+.stbar { flex-direction: column; align-items: flex-start; gap: 10px; }
+.stt-head, .stt-row { grid-template-columns: minmax(0, 1fr) 28px 28px 48px; }
+
+/* Compact header (option C) on every main page: logo row, then a pill + date line; controls sit in a white tab bar below */
+.chero { padding: 0 16px 16px; display: flex; align-items: center; gap: 10px; white-space: nowrap; font-size: 15px; font-weight: 700; color: #E4E5EA; }
+.chero .wk-tag { height: 24px; padding: 0 8px; font-size: 13px; }
+.home .top { padding-bottom: 0; }
+.gtabs .rd { width: 7px; height: 7px; border-radius: 4px; background: var(--live); margin-right: 6px; flex: none; }
+.wkpick.light { margin-top: 0; border-top: 0; background: #FFFFFF; border-bottom: 1px solid var(--border); }
+.wkpick.light button { color: #6B6F7A; }
+.wkpick.light button[aria-current='true'], .wkpick.light .arr { color: var(--text); }
+.vwpills { padding: 14px 12px 0; display: flex; gap: 8px; }
+.vwpills button { height: 36px; padding: 0 14px; border-radius: 18px; border: 1.5px solid var(--border); background: #FFFFFF; color: var(--text3); font-size: 14px; font-weight: 800; white-space: nowrap; }
+.vwpills button[aria-selected='true'] { background: var(--text); border-color: var(--text); color: #FFFFFF; }
+.tzline { margin: -6px 4px 10px; font-size: 13px; color: var(--muted); }
+/* No light strip between the footer and the bottom nav: the footer itself runs down behind the fixed nav */
+.app { padding-bottom: 0; }
+.site-footer { margin-top: auto; flex: 1 0 auto; padding-bottom: calc(30px + 64px + env(safe-area-inset-bottom)); }
+/* Roster tab: full depth chart */
+.dc-unit + .dc-unit { margin-top: 14px; }
+.dc-h { display: block; font-size: 11px; font-weight: 800; letter-spacing: .8px; color: var(--muted); text-transform: uppercase; padding: 4px 0 6px; }
+.dc-row { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 15px; }
+.dc-row .p { font-size: 13px; font-weight: 800; color: var(--muted); }
+.dc-names { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; row-gap: 2px; }
+.dc-names b { font-weight: 700; }
+.dc-names .bk { font-size: 13px; color: var(--muted); }
+.dc-names .bk + .bk::before { content: '· '; }
+/* Roster depth chart, matched to the design: grey OFFENSE / DEFENSE / SPECIAL TEAMS bands, red injury text */
+.dc-tag { font-size: 12px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--accent-text); }
+.dc-unit { margin: 0 -16px; }
+.dc-unit + .dc-unit { margin-top: 4px; }
+.dc-h { padding: 6px 16px; background: #F6F7F9; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.dc-row { padding: 8px 16px; }
+.dc-unit .dc-h + .dc-row { border-top: 0; }
+.dc-st { font-size: 12px; font-weight: 800; color: #C2272D; white-space: nowrap; background: none !important; }

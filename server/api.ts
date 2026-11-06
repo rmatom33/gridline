@@ -13,6 +13,7 @@ import { createSampleSource } from '../src/shared/sample';
 import { pregameHomeWinProbability } from '../src/shared/winprob';
 import { createSportsDataIOSource } from './providers/sportsdataio';
 import { createOddsClient } from './providers/theoddsapi';
+import { applyKickoffWeather as kickoffWeather } from './forecast';
 
 export const provider = (process.env.DATA_PROVIDER ?? 'sample').toLowerCase();
 
@@ -34,6 +35,9 @@ const odds = createOddsClient({
   bookmaker: process.env.ODDS_BOOKMAKER,
   minRemaining: process.env.ODDS_MIN_REMAINING ? Number(process.env.ODDS_MIN_REMAINING) : undefined
 });
+
+/** Real feeds only: sample games keep their made-up weather. */
+const applyKickoffWeather = (games: Parameters<typeof kickoffWeather>[0]) => (provider === 'sample' ? Promise.resolve() : kickoffWeather(games));
 
 export const describe = () => `${provider}${odds.status().enabled ? ' + The Odds API' : ''}`;
 
@@ -74,13 +78,13 @@ export async function handleApi(req: IncomingMessage, res: ServerResponse): Prom
     }
     if (path === '/api/scoreboard') {
       const sb = await source.scoreboard(weekParam(url));
-      await odds.apply(sb.games);
+      await Promise.all([odds.apply(sb.games), applyKickoffWeather(sb.games)]);
       send(res, 200, sb, 5);
       return true;
     }
     if (path === '/api/schedule') {
       const sc = await source.schedule(weekParam(url));
-      await odds.apply(sc.games);
+      await Promise.all([odds.apply(sc.games), applyKickoffWeather(sc.games)]);
       send(res, 200, sc, 60);
       return true;
     }
@@ -92,7 +96,7 @@ export async function handleApi(req: IncomingMessage, res: ServerResponse): Prom
     if (m) {
       const g = await source.game(m[1]);
       const before = g.odds?.spread;
-      await odds.apply([g]);
+      await Promise.all([odds.apply([g]), applyKickoffWeather([g])]);
       if (g.odds?.spread != null && g.odds.spread !== before) g.pregameHomeWinProb = pregameHomeWinProbability(g.odds.spread);
       send(res, 200, g, 5);
       return true;
@@ -100,7 +104,8 @@ export async function handleApi(req: IncomingMessage, res: ServerResponse): Prom
     const t = path.match(/^\/api\/team\/([A-Za-z]{2,4})$/);
     if (t) {
       const d = await source.team(t[1].toUpperCase());
-      await odds.apply([d.liveGame, d.nextGame].filter((x): x is NonNullable<typeof x> => !!x));
+      const tg = [d.liveGame, d.nextGame].filter((x): x is NonNullable<typeof x> => !!x);
+      await Promise.all([odds.apply(tg), applyKickoffWeather(tg)]);
       send(res, 200, d, 30);
       return true;
     }
@@ -148,7 +153,9 @@ async function checkFeeds() {
   const rest = await Promise.all([
     ['Standings', `/scores/json/Standings/${season}`],
     ['Season scores', `/scores/json/Scores/${season}`],
-    ['Injuries', `/scores/json/Injuries/${season}/${week}`],
+    ['Injuries (weekly, older plans)', `/scores/json/Injuries/${season}/${week}`],
+    ['Injured players', '/projections/json/InjuredPlayers'],
+    ['Players by team (injury status)', '/scores/json/Players/KC'],
     ['Depth charts (lineups)', '/scores/json/DepthCharts'],
     ...(started ? [
       ['Play-by-play', `/pbp/json/PlayByPlay/${season}/${started.Week}/${started.HomeTeam}`],

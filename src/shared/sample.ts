@@ -301,7 +301,7 @@ function staticGame(s: Static, now: number): GameDetail {
     quarters: s.quarters ?? { away: [], home: [] },
     plays: (s.plays ?? []).map((p, i) => ({ ...p, id: `${s.id}-${i}` })),
     winProbSeries: [], players: s.players ?? [], teamStats: [],
-    injuries: s.injuries ?? [], lineups: { away: [], home: [] },
+    injuries: s.injuries ?? [], lineups: { away: [], home: [] }, depth: { away: sampleDepth(s.away), home: sampleDepth(s.home) },
     pregameHomeWinProb: pregameHomeWinProbability(s.odds.spread)
   };
   g.homeWinProb = gameWinProbability(g);
@@ -460,3 +460,15 @@ function pastResults(abbr: string, now: number): Game[] {
 }
 
 export const SAMPLE_WEEK = WEEK;
+
+/** Made-up depth chart for the sample data, so the Roster tab has something to show. */
+function sampleDepth(abbr: string): import('./types').DepthChart {
+  const n = (i: number) => `${String.fromCharCode(65 + ((abbr.charCodeAt(0) + i) % 26))}. ${['Carter', 'Mills', 'Reyes', 'Nash', 'Ward', 'Holm', 'Bishop', 'Duarte', 'Lowe', 'Kemp', 'Bauer', 'Grant', 'Okafor', 'Price', 'Bell'][(abbr.charCodeAt(1) + i) % 15]}`;
+  let i = 0;
+  const pos = (p: string, k = 2) => ({ pos: p, players: Array.from({ length: k }, () => ({ name: n(i++) })) });
+  return {
+    offense: [pos('QB'), pos('RB'), pos('WR', 3), pos('WR'), pos('WR'), pos('TE'), pos('LT'), pos('C')],
+    defense: [pos('DE'), pos('DT'), pos('LB', 3), pos('LB'), pos('CB'), pos('CB'), pos('S')],
+    special: [pos('K', 1), pos('P', 1)]
+  };
+}

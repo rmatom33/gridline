@@ -2,14 +2,13 @@ import { useState } from 'react';
 import type { Game } from '../shared/types';
 import { data } from '../data/source';
 import { cached, useOnline, usePoll } from '../data/usePoll';
-import { etDateKey } from '../shared/format';
+import { etDateKey, TZ, tzLong } from '../shared/format';
 import { ErrorCard, Footer, Icon, Nav, OfflineBanner, Skeleton, TopBar } from '../ui/parts';
 import { GameCard } from '../ui/GameRow';
 import { TEAMS } from '../shared/teams';
 import { pollEvery } from './HomePage';
 
-const ET = 'America/New_York';
-const dayTitle = (iso: string) => new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: ET });
+const dayTitle = (iso: string) => new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: TZ });
 
 /** Games: pick any week; games grouped by day with kickoff, TV, odds and weather. */
 export function GamesPage() {
@@ -46,13 +45,12 @@ export function GamesPage() {
       <header className="top">
         <OfflineBanner online={online} stale={sbq.stale} updatedAt={sbq.updatedAt} retry={sbq.refresh} />
         <TopBar />
-        <div className="mhero">
-          <span className="over">{season} · Regular season</span>
-          <h1>Games</h1>
-          <p>Kickoff times, TV, favorites and weather for every game. Pick a week to jump to it.</p>
+        <div className="chero">
+          <span className="wk-tag">Games</span><span>{season} regular season</span>
         </div>
+      </header>
         {week != null && (
-          <nav className="wkpick" aria-label="Choose a week">
+          <nav className="wkpick light" aria-label="Choose a week">
             <button className="arr" onClick={() => go(week - 1)} disabled={week <= 1} aria-label="Earlier week"><Icon name="back" size={20} stroke={2.6} /></button>
             {shown.map((n) => (
               <button key={n} aria-current={n === week ? 'true' : undefined} onClick={() => go(n)}>WEEK {n}</button>
@@ -60,7 +58,6 @@ export function GamesPage() {
             <button className="arr" onClick={() => go(week + 1)} disabled={week >= lastWeek} aria-label="Later week"><Icon name="next" size={20} stroke={2.6} /></button>
           </nav>
         )}
-      </header>
 
       {error && !games && <main className="page"><ErrorCard error={error} retry={other ? scq.refresh : sbq.refresh} /></main>}
       {loading && <Skeleton />}
@@ -68,10 +65,11 @@ export function GamesPage() {
       {games && week != null && (
         <main className="page">
           <h2 className="wk-h">Week {week}{week === current ? ' · this week' : ''}</h2>
+          <p className="tzline">Times in {tzLong()}</p>
           {!games.length && <p className="byes">No games scheduled for this week yet.</p>}
           {[...byDay.values()].map((list) => (
             <section key={list[0].id} className="glist" aria-label={dayTitle(list[0].kickoff)}>
-              <div className="dayh"><b>{dayTitle(list[0].kickoff)}</b><span>{list.length} {list.length === 1 ? 'game' : 'games'}</span><i /></div>
+              <div className="dayh"><b>{dayTitle(list[0].kickoff)}</b><i /></div>
               {list.map((g) => <GameCard key={g.id} g={g} standings={st.data ?? undefined} />)}
             </section>
           ))}

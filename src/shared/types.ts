@@ -42,12 +42,21 @@ export interface Weather {
   windDir?: string | null;
   description?: string | null;
   precipPct?: number | null;
+  /** Simple sky condition at kickoff, for the icon. */
+  sky?: Sky | null;
+  /** True when the numbers are the forecast for the kickoff hour. */
+  atKickoff?: boolean;
 }
+
+export type Sky = 'sun' | 'partly' | 'cloud' | 'fog' | 'rain' | 'snow' | 'storm';
 
 export interface Venue {
   name?: string;
   city?: string;
   state?: string;
+  country?: string;
+  lat?: number;
+  lon?: number;
 }
 
 export interface Game {
@@ -147,6 +156,18 @@ export interface GameDetail extends Game {
   lineups: { away: LineupSlot[]; home: LineupSlot[] };
   pregameHomeWinProb?: number;
   summary?: string;
+  /** Full depth chart per team, grouped by unit. */
+  depth?: { away?: DepthChart; home?: DepthChart };
+  /** Recent form going into a scheduled game: last result and current streak. */
+  form?: { away?: TeamForm; home?: TeamForm };
+}
+
+export interface DepthPos { pos: string; players: { name: string; status?: InjuryStatus }[] }
+export interface DepthChart { offense: DepthPos[]; defense: DepthPos[]; special: DepthPos[] }
+
+export interface TeamForm {
+  last?: { opp: string; us: number; them: number; atHome: boolean; week: number };
+  streak?: { kind: 'W' | 'L' | 'T'; n: number };
 }
 
 export interface Standing {

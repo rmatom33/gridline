@@ -1,9 +1,8 @@
 import type { Game, Standing } from '../shared/types';
 import { href } from '../data/router';
-import { clockTime, countdownText, periodLabel, shortDay, spreadLabel, weatherShort } from '../shared/format';
+import { clockTime, periodLabel, shortDay, spreadLabel, weatherShort } from '../shared/format';
 import { team } from '../shared/teams';
-import { useNow } from '../data/usePoll';
-import { Badge, situationText, teamName, WatchOn } from './parts';
+import { Badge, situationText, teamName, VenueLine, WatchOn, WeatherChip } from './parts';
 
 /** "Dolphins favored by 3.5" in plain words. */
 export function favoredText(g: Game): string | null {
@@ -102,7 +101,6 @@ export function GameRow({ g, mode = 'score', standings, showDay }: { g: Game; mo
 
 /** One game as its own card, in the live-site style: status line, both teams, "Watch on" network row, then odds/weather or the live situation. */
 export function GameCard({ g, standings, showDay = true }: { g: Game; standings?: Standing[]; showDay?: boolean }) {
-  const now = useNow(30_000);
   const live = isLive(g);
   const done = g.status === 'final';
   const as = g.away.score ?? 0, hs = g.home.score ?? 0;
@@ -117,18 +115,18 @@ export function GameCard({ g, standings, showDay = true }: { g: Game; standings?
   const winText = hp != null ? (hp >= 0.5 ? `${g.home.abbr} ${Math.round(hp * 100)}% to win` : `${g.away.abbr} ${Math.round((1 - hp) * 100)}% to win`) : null;
   const sit = g.status === 'live' ? situationText(g) : null;
   const odds = [spreadLabel(g), g.odds?.total != null ? `O/U ${g.odds.total}` : null].filter(Boolean).join(' · ');
-  const wx = weatherLine(g);
+  const wx = g.weather && !done ? <WeatherChip w={g.weather} /> : null;
   return (
     <a className={`mcard${live ? ' is-live' : ''}`} href={href.game(g.id)} aria-label={label}>
       <div className="mc-head">
         {live ? (
-          <span className="when red"><span className="lv-pill">{g.status === 'halftime' ? 'HALF' : 'LIVE'}</span>{g.status === 'halftime' ? 'HALFTIME' : `${q}${g.clock ? ` · ${g.clock} LEFT` : ''}`}</span>
+          <span className="when red"><span className="lv-pill">{g.status === 'halftime' ? 'HALF' : 'LIVE'}</span>{g.status === 'halftime' ? 'HALFTIME' : `${q === 'OT' ? 'OVERTIME' : `${q} QUARTER`}${g.clock ? ` · ${g.clock}` : ''}`}</span>
         ) : done ? (
           <span className="when">{g.overtime ? 'Final · OT' : 'Final'}</span>
         ) : g.status === 'postponed' ? (
           <span className="when">Postponed</span>
         ) : (
-          <span className="when">{showDay ? `${shortDay(g.kickoff).split(',')[0]} ` : ''}{clockTime(g.kickoff)}<em>{countdownText(g.kickoff, now)}</em></span>
+          <span className="when">{showDay ? `${shortDay(g.kickoff).split(',')[0]} ` : ''}{clockTime(g.kickoff)}</span>
         )}
       </div>
       <div className="mc-teams">
@@ -148,6 +146,7 @@ export function GameCard({ g, standings, showDay = true }: { g: Game; standings?
           );
         })}
       </div>
+      <VenueLine v={g.venue} />
       {!done && <WatchOn tv={g.tv} />}
       {live ? (
         <div className="mc-foot live">
@@ -155,16 +154,17 @@ export function GameCard({ g, standings, showDay = true }: { g: Game; standings?
           {winText && <b>{winText}</b>}
         </div>
       ) : !done && (odds || wx) ? (
-        <div className="mc-foot"><span>{odds}</span><span>{wx}</span></div>
+        <div className="mc-foot"><span>{odds}</span>{wx}</div>
       ) : null}
     </a>
   );
 }
 
-/** "48° · 22 mph N", "Indoors". */
+/** "48° · Cloudy": plain text for places without the icon. */
 export function weatherLine(g: Game): string | null {
   const w = g.weather;
   if (!w) return null;
-  if (w.dome) return 'Indoors';
-  return [w.tempF != null ? `${Math.round(w.tempF)}°` : null, w.windMph != null ? `${Math.round(w.windMph)} mph${w.windDir ? ` ${w.windDir}` : ''}` : null, w.precipPct ? `${w.precipPct}% rain` : null].filter(Boolean).join(' · ') || null;
+  if (w.dome) return null;
+  const word = w.description ? w.description.charAt(0).toUpperCase() + w.description.slice(1) : null;
+  return [w.tempF != null ? `${Math.round(w.tempF)}°` : null, word].filter(Boolean).join(' · ') || null;
 }

@@ -3,9 +3,9 @@ import { data } from '../data/source';
 import { cached, useNow, useOnline, usePoll } from '../data/usePoll';
 import { href } from '../data/router';
 import { team, TEAMS } from '../shared/teams';
-import { useState } from 'react';
-import { clockTime, countdownText, etDateKey } from '../shared/format';
-import { Badge, Card, ErrorCard, Footer, LinkButton, Nav, OfflineBanner, Skeleton, situationText, teamName, TopBar, WatchOn, WinNums } from '../ui/parts';
+import { useState, type ReactNode } from 'react';
+import { clockTime, countdownText, etDateKey, tzAbbr, TZ } from '../shared/format';
+import { Badge, Card, ErrorCard, Footer, LinkButton, Nav, OfflineBanner, Skeleton, situationText, teamName, TopBar, WatchOn, WinNums, WxIcon, skyOf, venuePlace } from '../ui/parts';
 import { GameCard, isLive, liveStatus, plainSituation, weatherLine } from '../ui/GameRow';
 
 export const pollEvery = (sb: Scoreboard | null) => (sb?.games.some(isLive) ? 10_000 : 60_000);
@@ -18,7 +18,6 @@ export function pickSpotlight(games: Game[]): Game | undefined {
       || Math.abs((a.home.score ?? 0) - (a.away.score ?? 0)) - Math.abs((b.home.score ?? 0) - (b.away.score ?? 0)))[0];
 }
 
-const longDay = (ms: number) => new Date(ms).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'America/New_York' });
 
 
 type Filter = 'all' | 'live' | 'later' | 'done';
@@ -37,12 +36,7 @@ export function HomePage() {
   const upNext = upcoming[0];
   const finals = games.filter((g) => g.status === 'final').sort((a, b) => b.kickoff.localeCompare(a.kickoff));
   const today = etDateKey(now);
-  const laterToday = upcoming.filter((g) => etDateKey(g.kickoff) === today).length;
   const gameDay = live.length > 0 || games.some((g) => etDateKey(g.kickoff) === today);
-  const summary = !sb ? 'Getting this week’s games…'
-    : live.length ? `${live.length} ${live.length === 1 ? 'game' : 'games'} on now${laterToday ? `, ${laterToday} more later today` : upcoming.length ? `, ${upcoming.length} more this week` : ''}.`
-    : gameDay ? (upcoming.length ? `Next kickoff ${countdownText(upcoming[0].kickoff, now)}.` : 'Today’s games are finished.')
-    : 'Catch up on the latest results, or see who plays next.';
   const playing = new Set(games.flatMap((g) => [g.away.abbr, g.home.abbr]));
   const byes = games.length ? Object.keys(TEAMS).filter((t) => !playing.has(t)).map((t) => TEAMS[t].name) : [];
   const show = (f: Filter) => filter === 'all' || filter === f;
@@ -53,27 +47,19 @@ export function HomePage() {
       <header className="top">
         <OfflineBanner online={online} stale={q.stale} updatedAt={q.updatedAt} retry={q.refresh} />
         <TopBar />
-        <div className="mhero">
-          <span className="kick">{sb && <span className="wk-tag">Week {sb.week}</span>}<span>{longDay(now)}</span></span>
-          <h1>{!sb ? 'Scoreboardrecap' : gameDay ? 'Game day' : 'No games today'}</h1>
-          <p>{summary}</p>
+        <div className="chero">
+          {sb && <span className="wk-tag">Week {sb.week}</span>}
         </div>
-        {sb && (
-          <>
-            <div className="mtiles" role="group" aria-label="Jump to">
-              <button aria-pressed={filter === 'live'} onClick={() => setFilter(filter === 'live' ? 'all' : 'live')}><b className={live.length ? 'red' : ''}>{live.length}</b><span>Live now</span></button>
-              <button aria-pressed={filter === 'later'} onClick={() => setFilter(filter === 'later' ? 'all' : 'later')}><b>{upcoming.length}</b><span>Kickoff later</span></button>
-              <button aria-pressed={filter === 'done'} onClick={() => setFilter(filter === 'done' ? 'all' : 'done')}><b>{finals.length}</b><span>Final scores</span></button>
-            </div>
-            <div className="mpills" role="group" aria-label="Show">
-              <button aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>All <i>{games.length}</i></button>
-              <button aria-pressed={filter === 'live'} onClick={() => setFilter('live')}><span className="rd" />Live <i>{live.length}</i></button>
-              <button aria-pressed={filter === 'later'} onClick={() => setFilter('later')}>Later <i>{upcoming.length}</i></button>
-              <button aria-pressed={filter === 'done'} onClick={() => setFilter('done')}>Done <i>{finals.length}</i></button>
-            </div>
-          </>
-        )}
       </header>
+      {sb && (
+        <nav className="gtabs" role="tablist" aria-label="Show games">
+          {([['all', 'All'], ['live', 'Live'], ['later', 'Later'], ['done', 'Final']] as const).map(([f, label]) => (
+            <button key={f} role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}>
+              {f === 'live' && live.length > 0 && <span className="rd" aria-hidden="true" />}{label}
+            </button>
+          ))}
+        </nav>
+      )}
 
       {!sb && q.error && <main className="page"><ErrorCard error={q.error} retry={q.refresh} /></main>}
       {!sb && !q.error && <Skeleton />}
@@ -83,14 +69,14 @@ export function HomePage() {
           {show('live') && spot && <Spotlight g={spot} hideNumbers={q.stale || !online} />}
 
           {show('live') && live.length > (spot ? 1 : 0) && (
-            <section className="glist" aria-label="Live now">
-              <div className="sect-h"><h2><span className="lv" aria-hidden="true" />Live now</h2><span className="cnt">{live.length - (spot ? 1 : 0)}</span></div>
+            <section className="glist" aria-label="Live">
+              <div className="sect-h"><h2><span className="lv" aria-hidden="true" />Live</h2></div>
               {live.filter((g) => g !== spot).map((g) => <GameCard key={g.id} g={g} standings={st2} />)}
             </section>
           )}
           {filter === 'live' && !live.length && (
             <EmptyState kind="live" title="No games live right now"
-              text={upNext ? `Next kickoff ${shortDayTime(upNext.kickoff)} ET, ${countdownText(upNext.kickoff, now)}. Scores show here the moment it starts.` : 'Scores show here the moment a game kicks off.'}
+              text={upNext ? `Next kickoff ${shortDayTime(upNext.kickoff)} ${tzAbbr(upNext.kickoff)}, ${countdownText(upNext.kickoff, now)}. Scores show here the moment it starts.` : 'Scores show here the moment a game kicks off.'}
               game={upNext}
               actions={[upcoming.length ? { label: 'See upcoming games', go: () => setFilter('later') } : null, finals.length ? { label: 'See final scores', go: () => setFilter('done') } : null]} />
           )}
@@ -99,7 +85,7 @@ export function HomePage() {
 
           {show('later') && upcoming.length > 0 && (
             <section className="glist" aria-label={gameDay ? 'Later' : 'Coming up'}>
-              <div className="sect-h"><h2>{gameDay ? 'Later' : 'Coming up'}</h2><span className="cnt">{upcoming.length}</span></div>
+              <div className="sect-h"><h2>{gameDay ? 'Later' : 'Coming up'}</h2></div>
               {upcoming.map((g) => <GameCard key={g.id} g={g} standings={st2} />)}
             </section>
           )}
@@ -110,7 +96,7 @@ export function HomePage() {
 
           {show('done') && finals.length > 0 && (
             <section className="glist" aria-label="Final scores">
-              <div className="sect-h"><h2>Final scores</h2><span className="cnt">{finals.length}</span></div>
+              <div className="sect-h"><h2>Final scores</h2></div>
               {finals.map((g) => <GameCard key={g.id} g={g} standings={st2} />)}
             </section>
           )}
@@ -137,7 +123,7 @@ export function HomePage() {
 }
 
 type Act = { label: string; go?: () => void; href?: string } | null;
-const shortDayTime = (iso: string) => `${new Date(iso).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' })} ${clockTime(iso)}`;
+const shortDayTime = (iso: string) => `${new Date(iso).toLocaleDateString('en-US', { weekday: 'short', timeZone: TZ })} ${clockTime(iso)}`;
 
 /** Friendly card when a filter has nothing to show: icon, what's going on, what's next, and where to go. */
 function EmptyState({ kind, title, text, game, actions }: { kind: 'live' | 'later' | 'done'; title: string; text: string; game?: Game; actions: Act[] }) {
@@ -172,24 +158,30 @@ function NextMatchup({ g, standings }: { g: Game; standings: Standing[] | null }
     const s = standings?.find((x) => x.team === abbr);
     return s ? `${s.w}-${s.l}${s.t ? `-${s.t}` : ''}` : fb ?? '';
   };
-  const day = new Date(g.kickoff).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'America/New_York' });
+  const when = `${new Date(g.kickoff).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: TZ })} · ${clockTime(g.kickoff)}`.toUpperCase();
   const sp = g.odds?.spread;
   const favorite = sp == null ? null : sp === 0 ? 'Even matchup' : `${teamName(sp < 0 ? g.home.abbr : g.away.abbr)} −${Math.abs(sp)}`;
-  const cells: [string, string | null][] = [
-    [`KICKOFF · ${day.split(', ').slice(1).join(' ').toUpperCase()}`, `${day.split(',')[0].slice(0, 3)} · ${clockTime(g.kickoff)}`],
-    ['FAVORITE', favorite], ['TOTAL POINTS', g.odds?.total != null ? `O/U ${g.odds.total}` : null], ['WEATHER', weatherLine(g)]
+  const place = venuePlace(g.venue);
+  const sky = skyOf(g.weather);
+  const w = g.weather;
+  const cells: [string, ReactNode, ReactNode?][] = [
+    ['LOCATION', g.venue?.name ?? place, g.venue?.name ? place : null],
+    ['FAVORITE', favorite],
+    ['OVER/UNDER', g.odds?.total != null ? `${g.odds.total} Points` : null],
+    ['WEATHER', sky && sky !== 'dome' && w?.tempF != null ? <><WxIcon sky={sky} /> {Math.round(w.tempF)}°</> : null,
+      sky && sky !== 'dome' ? weatherLine({ ...g, weather: { ...w!, tempF: null } }) : null]
   ];
   return (
     <section className="card nextm" aria-label={`Next matchup: ${teamName(g.away.abbr)} at ${teamName(g.home.abbr)}`}>
-      <span className="kk">NEXT MATCHUP</span>
+      <span className="kk">{when}</span>
       <a className="vs" href={href.game(g.id)}>
         <span><Badge abbr={g.away.abbr} size={48} /><b>{teamName(g.away.abbr)}</b><small>{rec(g.away.abbr, g.away.record)}</small></span>
         <span className="at">AT</span>
         <span><Badge abbr={g.home.abbr} size={48} /><b>{teamName(g.home.abbr)}</b><small>{rec(g.home.abbr, g.home.record)}</small></span>
       </a>
-      <div className="nm-grid">{cells.map(([k, v]) => <div key={k}><span>{k}</span><b>{v ?? '–'}</b></div>)}</div>
+      <div className="nm-grid">{cells.map(([k, v, sub]) => <div key={k}><span>{k}</span><b>{v ?? '–'}</b>{sub && <small>{sub}</small>}</div>)}</div>
       <WatchOn tv={g.tv} big />
-      <a className="btn primary" href={href.game(g.id)}>Preview the game</a>
+      <a className="btn primary" href={href.game(g.id)}>Game preview</a>
     </section>
   );
 }

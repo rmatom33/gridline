@@ -10,13 +10,15 @@
 // and box scores are usually separate products).
 
 import type {
-  DataSource, Game, GameDetail, GameStatus, Injury, InjuryStatus, LineupSlot, Play, PlayKind,
+  DataSource, DepthChart, DepthPos, Game, GameDetail, GameStatus, Injury, InjuryStatus, LineupSlot, Play, PlayKind,
   PlayerLine, Schedule, Scoreboard, Standing, TeamStatRow
 } from '../../src/shared/types';
 import { normalizeAbbr, team, TEAMS } from '../../src/shared/teams';
 import { gameWinProbability, homeWinProbability, pregameHomeWinProbability, secondsRemaining } from '../../src/shared/winprob';
 import { buildSummary } from '../../src/shared/summary';
 import { buildTeamDetail } from '../../src/shared/teamdetail';
+import { skyFromText } from '../forecast';
+import { gameForm } from '../../src/shared/form';
 
 type J = Record<string, any>;
 
@@ -65,6 +67,28 @@ export function createSportsDataIOSource(opts: SdioOptions): DataSource {
     return get<J[]>(`/scores/json/ScoresByWeek/${apiSeason}/${week}`, 5_000); // VERIFY
   }
 
+  /**
+   * Injury report: InjuredPlayers ("Player Details - by Injured") first, then the old weekly Injuries feed
+   * (retired on current plans), then each team's player list, which carries InjuryStatus / InjuryBodyPart.
+   * Everything is normalised to { Name, Team, Position, BodyPart, Status }.
+   */
+  async function injuryRows(apiSeason: string, week: number, teams: string[]): Promise<J[]> {
+    // Player objects carry the roster Status ("Active") and a separate InjuryStatus; injury rows only have Status.
+    const st = (r: J) => (r.InjuryStatus !== undefined ? r.InjuryStatus : r.Status);
+    const norm = (rows: J[]) => rows
+      .filter((r) => r && st(r) && !/^(active|healthy|scrambled)$/i.test(String(st(r))))
+      .map((r) => ({ Name: r.Name ?? [r.FirstName, r.LastName].filter(Boolean).join(' '), Team: r.Team, Position: r.Position, BodyPart: r.InjuryBodyPart ?? r.BodyPart, Status: st(r) }));
+    // "Player Details - by Injured" lives under the projections product: /v3/nfl/projections/json/InjuredPlayers.
+    const injured = await get<J[]>('/projections/json/InjuredPlayers', 10 * 60_000)
+      .catch(() => get<J[]>('/scores/json/InjuredPlayers', 10 * 60_000))
+      .catch(() => null);
+    if (Array.isArray(injured) && injured.length) return norm(injured);
+    const weekly = await get<J[]>(`/scores/json/Injuries/${apiSeason}/${week}`, 30 * 60_000).catch(() => null);
+    if (Array.isArray(weekly) && weekly.length) return norm(weekly);
+    const perTeam = await Promise.all(teams.map((t) => get<J[]>(`/scores/json/Players/${t}`, 30 * 60_000).catch(() => [] as J[])));
+    return norm(perTeam.flat());
+  }
+
   async function standingsRows(): Promise<Standing[]> {
     const { season, apiSeason } = await current();
     const rows = await get<J[]>(`/scores/json/Standings/${apiSeason}`, 10 * 60_000); // VERIFY
@@ -97,11 +121,13 @@ export function createSportsDataIOSource(opts: SdioOptions): DataSource {
     const live = base.status === 'live' || base.status === 'halftime';
     const ttl = live ? 8_000 : 5 * 60_000;
 
-    const [pbp, box, depth, injuries] = await Promise.all([
+    const [pbp, box, depth, injuries, season] = await Promise.all([
       base.status === 'scheduled' ? null : get<J>(`/pbp/json/PlayByPlay/${apiSeason}/${base.week}/${score.HomeTeam}`, ttl).catch(() => null), // VERIFY
       base.status === 'scheduled' ? null : get<J>(`/stats/json/BoxScoreByScoreIDV3/${id}`, ttl).catch(() => null), // VERIFY
       get<J[]>('/scores/json/DepthCharts', 6 * 3_600_000).catch(() => [] as J[]), // VERIFY
-      get<J[]>(`/scores/json/Injuries/${apiSeason}/${base.week}`, 30 * 60_000).catch(() => [] as J[]) // VERIFY (may be InjuriesByWeek on newer plans)
+      injuryRows(apiSeason, base.week, [score.AwayTeam, score.HomeTeam]),
+      // Season results, for "coming off a loss to…" lines in the preview.
+      base.status === 'scheduled' || base.status === 'postponed' ? get<J[]>(`/scores/json/Scores/${apiSeason}`, 10 * 60_000).catch(() => [] as J[]) : Promise.resolve([] as J[])
     ]);
 
     const plays = mapPlays(pbp?.Plays ?? [], base);
@@ -120,7 +146,9 @@ export function createSportsDataIOSource(opts: SdioOptions): DataSource {
       teamStats: mapTeamStats(box?.TeamGames ?? [], base),
       injuries: mapInjuries(injuries, [base.away.abbr, base.home.abbr]),
       lineups: { away: mapLineup(depth, base.away.abbr, score.AwayTeamID, injuries), home: mapLineup(depth, base.home.abbr, score.HomeTeamID, injuries) },
-      pregameHomeWinProb: pregameHomeWinProbability(base.odds?.spread ?? null)
+      depth: { away: mapDepth(depth, base.away.abbr, score.AwayTeamID, injuries), home: mapDepth(depth, base.home.abbr, score.HomeTeamID, injuries) },
+      pregameHomeWinProb: pregameHomeWinProbability(base.odds?.spread ?? null),
+      form: season.length ? gameForm(base, season.map(mapScore)) : undefined
     };
     detail.summary = buildSummary(detail);
     return detail;
@@ -151,7 +179,7 @@ export function createSportsDataIOSource(opts: SdioOptions): DataSource {
       const [standings, season, injuries] = await Promise.all([
         standingsRows(),
         get<J[]>(`/scores/json/Scores/${apiSeason}`, 10 * 60_000).catch(() => [] as J[]), // VERIFY
-        get<J[]>(`/scores/json/Injuries/${apiSeason}/${week}`, 30 * 60_000).catch(() => [] as J[]) // VERIFY
+        injuryRows(apiSeason, week, [code])
       ]);
       // Live games come from the short-cache weekly call so the team page stays current.
       const thisWeek = await scoresForWeek(apiSeason, week).catch(() => [] as J[]);
@@ -216,7 +244,8 @@ function mapScore(s: J): Game {
   const terr = normalizeAbbr(s.YardLineTerritory);
   const yfog = yl == null || !possession ? null : terr === poss ? yl : 100 - yl;
   const stadium: J = s.StadiumDetails ?? {};
-  const dome = /dome/i.test(String(stadium.Type ?? '')) || !!TEAMS[home]?.dome;
+  // Use the stadium's own roof type when the feed has it (neutral sites such as Madrid).
+  const dome = stadium.Type ? /dome/i.test(String(stadium.Type)) : !!TEAMS[home]?.dome;
   const g: Game = {
     id: String(s.ScoreID ?? s.GameKey),
     season: Number(s.Season), week: Number(s.Week),
@@ -242,9 +271,13 @@ function mapScore(s: J): Game {
       tempF: s.ForecastTempHigh ?? s.ForecastTempLow ?? null,
       windMph: s.ForecastWindSpeed ?? null,
       description: s.ForecastDescription ?? null,
-      precipPct: null
+      precipPct: null,
+      sky: skyFromText(s.ForecastDescription)
     },
-    venue: { name: stadium.Name, city: stadium.City, state: stadium.State },
+    venue: {
+      name: stadium.Name, city: stadium.City, state: stadium.State, country: stadium.Country,
+      lat: stadium.GeoLat != null ? Number(stadium.GeoLat) : undefined, lon: stadium.GeoLong != null ? Number(stadium.GeoLong) : undefined
+    },
     lastPlay: s.LastPlay ?? undefined,
     tv: s.Channel ?? null,
     overtime: String(s.Status ?? '').includes('OT') || s.Quarter === 'OT'
@@ -356,13 +389,47 @@ function mapInjuries(raw: J[], teams: string[]): Injury[] {
 const LINEUP_POS: Record<string, string> = { QB: 'QB', RB: 'RB', HB: 'RB', FB: 'RB', WR: 'WR', LWR: 'WR', RWR: 'WR', SWR: 'WR', SLWR: 'WR', TE: 'TE', K: 'K', PK: 'K' };
 const lineupPos = (p: unknown) => LINEUP_POS[String(p ?? '').toUpperCase().replace(/\d/g, '')] ?? null;
 
-function mapLineup(depth: J[], abbr: string, teamId: unknown, injuries: J[]): LineupSlot[] {
-  // DepthCharts returns one entry per team: { TeamID, Offense: [{ Name, Position, DepthOrder, Team? }], Defense, SpecialTeams }.
-  // Some plans omit the team abbreviation at the top level, so match by TeamID or by the players' own Team field too.
-  const d = depth.find((t) =>
+// DepthCharts returns one entry per team: { TeamID, Offense: [{ Name, Position, DepthOrder, Team? }], Defense, SpecialTeams }.
+// Some plans omit the team abbreviation at the top level, so match by TeamID or by the players' own Team field too.
+function findDepth(depth: J[], abbr: string, teamId: unknown): J | undefined {
+  return depth.find((t) =>
     (t.Team && normalizeAbbr(t.Team) === abbr) ||
     (teamId != null && t.TeamID != null && String(t.TeamID) === String(teamId)) ||
     (Array.isArray(t.Offense) && t.Offense.some((p: J) => p.Team && normalizeAbbr(p.Team) === abbr)));
+}
+
+const UNIT_ORDER: Record<string, string[]> = {
+  offense: ['QB', 'RB', 'FB', 'LWR', 'RWR', 'SWR', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT'],
+  defense: ['LDE', 'DE', 'LDT', 'NT', 'DT', 'RDT', 'RDE', 'EDGE', 'OLB', 'SLB', 'LOLB', 'LILB', 'MLB', 'ILB', 'RILB', 'WLB', 'ROLB', 'LB', 'LCB', 'CB', 'RCB', 'NB', 'SS', 'FS', 'S'],
+  special: ['K', 'PK', 'P', 'LS', 'H', 'KR', 'PR']
+};
+
+function mapDepth(depth: J[], abbr: string, teamId: unknown, injuries: J[]): DepthChart | undefined {
+  const d = findDepth(depth, abbr, teamId);
+  if (!d) return undefined;
+  const unit = (rows: J[] | undefined, order: string[]): DepthPos[] => {
+    const by = new Map<string, J[]>();
+    for (const p of rows ?? []) {
+      if (!p?.Name || !p.Position) continue;
+      const k = String(p.Position).toUpperCase();
+      by.set(k, [...(by.get(k) ?? []), p]);
+    }
+    const rank = (k: string) => { const i = order.indexOf(k.replace(/\d/g, '')); return i < 0 ? 99 : i; };
+    return [...by.entries()]
+      .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
+      .map(([pos, list]) => ({
+        pos,
+        players: list.sort((x, y) => Number(x.DepthOrder ?? 99) - Number(y.DepthOrder ?? 99)).slice(0, 3).map((p) => {
+          const inj = injuries.find((i) => i.Name === p.Name);
+          return { name: shortName(p.Name), status: inj ? injuryStatus(inj.Status) : undefined };
+        })
+      }));
+  };
+  return { offense: unit(d.Offense, UNIT_ORDER.offense), defense: unit(d.Defense, UNIT_ORDER.defense), special: unit(d.SpecialTeams, UNIT_ORDER.special) };
+}
+
+function mapLineup(depth: J[], abbr: string, teamId: unknown, injuries: J[]): LineupSlot[] {
+  const d = findDepth(depth, abbr, teamId);
   if (!d) return [];
   const want = ['QB', 'RB', 'WR', 'WR', 'WR', 'TE', 'K'];
   const used = new Set<string>();

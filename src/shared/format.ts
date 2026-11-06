@@ -14,10 +14,35 @@ export function downText(down: number | null | undefined, dist: number | null | 
   return `${ordinal(down)} & ${goalToGo ? 'Goal' : dist ?? ''}`;
 }
 
-const ET = 'America/New_York';
+/**
+ * The viewer's own time zone, from their device settings (which follow their
+ * location), so every kickoff shows in local time. Falls back to Eastern, the
+ * NFL's home time zone, if the browser can't say.
+ */
+export const TZ: string = (() => {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York'; } catch { return 'America/New_York'; }
+})();
 
+/** Short zone name for a moment, e.g. "CST", "PDT", or "GMT+1" where there's no common abbreviation. */
+export function tzAbbr(iso: string | number = Date.now()): string {
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone: TZ, timeZoneName: 'short' }).formatToParts(new Date(iso)).find((p) => p.type === 'timeZoneName')?.value ?? '';
+  } catch { return ''; }
+}
+
+/** Long zone name, e.g. "Central Standard Time". */
+export function tzLong(iso: string | number = Date.now()): string {
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone: TZ, timeZoneName: 'long' }).formatToParts(new Date(iso)).find((p) => p.type === 'timeZoneName')?.value ?? '';
+  } catch { return ''; }
+}
+
+const ET = TZ;
+
+/** "4:25 PM CST": local kickoff time with the zone. */
 export function kickoffTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: ET }) + ' ET';
+  const z = tzAbbr(iso);
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: ET }) + (z ? ` ${z}` : '');
 }
 
 export function kickoffDay(iso: string): string {
@@ -53,7 +78,7 @@ export function pct(p: number): string {
 
 // ---- Additional display helpers ----
 
-/** "Sun, Nov 1" in Eastern time. */
+/** "Sun, Nov 1" in the viewer's time zone. */
 export function shortDay(iso: string | number): string {
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: ET });
 }
@@ -63,12 +88,12 @@ export function kickerDay(iso: string | number): string {
   return shortDay(iso).replace(',', '').toUpperCase();
 }
 
-/** "4:25 PM" (ET, no suffix). */
+/** "4:25 PM" (viewer's time zone, no suffix). */
 export function clockTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: ET });
 }
 
-/** Eastern calendar date key, e.g. "2026-11-01". */
+/** Calendar date key in the viewer's time zone, e.g. "2026-11-01". */
 export function etDateKey(iso: string | number): string {
   return new Date(iso).toLocaleDateString('en-CA', { timeZone: ET });
 }
@@ -112,7 +137,7 @@ export function spreadLabel(g: Game): string | null {
 export function weatherShort(g: Game): string | null {
   const w = g.weather;
   if (!w) return null;
-  if (w.dome) return 'Indoors';
+  if (w.dome) return null;
   const parts = [w.tempF != null ? `${Math.round(w.tempF)}°F` : null, w.windMph != null ? `Wind ${Math.round(w.windMph)}` : null].filter(Boolean);
   return parts.length ? parts.join(' · ') : null;
 }
@@ -130,10 +155,10 @@ export function record(w: number, l: number, t: number): string {
 // ---- TV networks: always shown in full, never abbreviated ----
 const NETWORKS: Record<string, string> = {
   AMZN: 'Prime Video', AMAZON: 'Prime Video', PRIME: 'Prime Video', 'PRIME VIDEO': 'Prime Video',
-  'CBS/P': 'CBS · Paramount+', 'CBS/PARAMOUNT+': 'CBS · Paramount+', 'PARAMOUNT+': 'Paramount+',
-  'NBC/P': 'NBC · Peacock', 'NBC/PEACOCK': 'NBC · Peacock', PEACOCK: 'Peacock',
+  'CBS/P': 'CBS & Paramount+', 'CBS/PARAMOUNT+': 'CBS & Paramount+', 'PARAMOUNT+': 'Paramount+',
+  'NBC/P': 'NBC & Peacock', 'NBC/PEACOCK': 'NBC & Peacock', PEACOCK: 'Peacock',
   NFLN: 'NFL Network', 'NFL NETWORK': 'NFL Network', NFLNET: 'NFL Network',
-  'ESPN/ABC': 'ESPN · ABC', 'ABC/ESPN': 'ABC · ESPN', ESPN2: 'ESPN2', 'ESPN+': 'ESPN+',
+  'ESPN/ABC': 'ESPN & ABC', 'ABC/ESPN': 'ABC & ESPN', ESPN2: 'ESPN2', 'ESPN+': 'ESPN+',
   NETFLIX: 'Netflix', NFLX: 'Netflix', YOUTUBE: 'YouTube', YT: 'YouTube', 'NFL+': 'NFL+',
   FOX: 'FOX', CBS: 'CBS', NBC: 'NBC', ABC: 'ABC', ESPN: 'ESPN'
 };
@@ -141,5 +166,8 @@ const NETWORKS: Record<string, string> = {
 export function networkName(tv?: string | null): string | null {
   if (!tv) return null;
   const k = tv.trim().toUpperCase();
-  return NETWORKS[k] ?? tv.trim();
+  if (NETWORKS[k]) return NETWORKS[k];
+  // Simulcasts the table doesn't know yet, e.g. "FOX/FOXONE" -> "FOX & FOXONE".
+  if (/[/,]/.test(k)) return tv.split(/\s*[/,]\s*/).filter(Boolean).map((p) => NETWORKS[p.trim().toUpperCase()] ?? p.trim()).join(' & ');
+  return tv.trim();
 }

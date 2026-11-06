@@ -4,7 +4,7 @@ import { team } from '../shared/teams';
 import { data } from '../data/source';
 import { cached, useNow, useOnline, usePoll } from '../data/usePoll';
 import { href } from '../data/router';
-import { clockTime, kickoffTime, moneyline, periodLabel, record, shortDay, spreadLabel, streakText } from '../shared/format';
+import { clockTime, kickoffTime, moneyline, periodLabel, record, shortDay, spreadLabel, streakText, tzAbbr, tzLong, TZ } from '../shared/format';
 import { impact, statLine } from '../shared/stats';
 import { groupDrives, wpDeltas } from '../shared/drives';
 import {
@@ -26,7 +26,7 @@ export function GamePage({ id }: { id: string }) {
   const stale = q.stale || !online;
   const pre = !!g && (g.status === 'scheduled' || g.status === 'postponed');
   const tabs: [Tab | 'plays', string][] = pre
-    ? [['preview', 'Preview'], ['lineups', 'Lineups'], ['injuries', 'Injuries'], ['odds', 'Odds']]
+    ? [['preview', 'Preview'], ['injuries', 'Injuries'], ['lineups', 'Roster'], ['odds', 'Odds']]
     : [['center', g?.status === 'final' ? 'Recap' : 'Game center'], ['plays', 'Play-by-play'], ['box', 'Box score']];
   const valid = tabs.some(([k]) => k === tabSel);
   const tab: Tab = valid && tabSel ? tabSel : pre ? 'preview' : 'center';
@@ -107,17 +107,17 @@ function GameHeader({ g, standings, stale }: { g: GameDetail; standings: Standin
     );
   };
   const t = clockTime(g.kickoff);
-  const day = new Date(g.kickoff).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' }).toUpperCase();
+  const day = new Date(g.kickoff).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: TZ }).toUpperCase();
   return (
     <>
       <div className="gh-meta"><span>Week {g.week}{where ? ` · ${where}` : ''}</span></div>
       <div className="gh">
         {side('away')}
         {pre ? (
-          <div className="gh-mid" aria-label={`Kickoff ${day} at ${t} Eastern`}>
+          <div className="gh-mid" aria-label={`Kickoff ${day} at ${t} ${tzLong(g.kickoff)}`}>
             <span className="day">{day}</span>
             <span className="time">{g.status === 'postponed' ? 'TBD' : t}</span>
-            <span className="cap">{g.status === 'postponed' ? 'POSTPONED' : 'KICKOFF · ET'}</span>
+            <span className="cap">{g.status === 'postponed' ? 'POSTPONED' : `KICKOFF · ${tzAbbr(g.kickoff)}`}</span>
           </div>
         ) : (
           <div className="gh-mid" aria-label={`${teamName(g.away.abbr)} ${as}, ${teamName(g.home.abbr)} ${hs}, ${liveStatus(g)}`}>
@@ -147,7 +147,7 @@ function LineScore({ g, half = false }: { g: GameDetail; half?: boolean }) {
   const cols = `minmax(0,1.4fr) repeat(${n + 1}, minmax(0,1fr))`;
   return (
     <div className="linescore" style={{ gridTemplateColumns: cols }} role="table" aria-label="Score by quarter">
-      <span className="h t" role="columnheader">TEAM</span>
+      <span className="h t" role="columnheader" aria-label="Team" />
       {heads.map((h, i) => <span className="h" key={i} role="columnheader">{h}</span>)}
       <span className="h" role="columnheader">{half ? 'HALF' : 'T'}</span>
       {(['away', 'home'] as const).map((s) => (
@@ -241,7 +241,7 @@ function BetCard({ g, live = false }: { g: GameDetail; live?: boolean }) {
       </div>
       {(o.homeMoneyline != null || o.awayMoneyline != null) && (
         <div role="table" aria-label="Moneyline">
-          <div className="mltab-h" role="row"><span>TEAM</span><span>MONEYLINE</span><span>CHANCE</span></div>
+          <div className="mltab-h" role="row"><span /><span>MONEYLINE</span><span>CHANCE</span></div>
           {rows.map(([side, ml]) => (
             <div className="mltab-r" role="row" key={side}>
               <span><Badge abbr={g[side].abbr} size={24} />{teamName(g[side].abbr)}</span>
@@ -270,7 +270,7 @@ function ChanceCard({ g, note }: { g: GameDetail; note?: string }) {
 function WeatherCard({ g, title = 'Weather at kickoff' }: { g: GameDetail; title?: string }) {
   const w = g.weather;
   if (!w) return null;
-  if (w.dome) return <PadCard title={title}><div className="wx-top"><span className="go" style={{ width: 48, height: 48 }}><Icon name="where" size={24} /></span><span><strong>Indoors</strong><span className="sub" style={{ display: 'block' }}>Roof closed, so weather has no effect.</span></span></div></PadCard>;
+  if (w.dome) return null;
   const windy = (w.windMph ?? 0) >= 18;
   const wet = (w.precipPct ?? 0) >= 40;
   const note = windy ? 'Strong wind may affect kicks and deep passes.' : wet ? 'Rain is likely: watch for fumbles.' : 'Good conditions for football.';
@@ -342,19 +342,48 @@ function previewText(g: GameDetail, standings: Standing[] | null): string {
   };
   const a = team(g.away.abbr), h = team(g.home.abbr);
   const ar = rec(a.abbr, g.away.record), hr = rec(h.abbr, g.home.record);
-  let t = `${a.city}${ar ? ` (${ar})` : ''} visits ${h.city}${hr ? ` (${hr})` : ''}.`;
+  const out: string[] = [];
+  const abroad = g.venue?.country && !/^(us|usa|united states)$/i.test(g.venue.country.trim());
+  out.push(abroad
+    ? `${a.city}${ar ? ` (${ar})` : ''} and ${h.city}${hr ? ` (${hr})` : ''} meet in ${[g.venue?.city, g.venue?.country].filter(Boolean).join(', ')}${g.venue?.name ? ` at ${g.venue.name}` : ''}.`
+    : `${a.city}${ar ? ` (${ar})` : ''} visits ${h.city}${hr ? ` (${hr})` : ''}.`);
+
+  // Starting quarterbacks, from the depth chart.
+  const qb = (side: 'away' | 'home') => g.lineups[side].find((p) => p.pos === 'QB' && p.status !== 'Out')?.name;
+  const aq = qb('away'), hq = qb('home');
+  if (aq && hq) out.push(`${aq} starts at quarterback for ${a.city}, ${hq} for ${h.city}.`);
+  else if (aq || hq) out.push(`${aq ?? hq} starts at quarterback for ${aq ? a.city : h.city}.`);
+
+  // How each team comes in: streaks of 3+, otherwise last week's result.
+  const formLine = (side: 'away' | 'home') => {
+    const f = g.form?.[side];
+    const t = side === 'away' ? a : h;
+    if (!f?.last) return null;
+    const l = f.last, opp = team(l.opp);
+    const score = `${Math.max(l.us, l.them)}-${Math.min(l.us, l.them)}`;
+    const where = l.atHome ? `to the ${opp.name}` : `at ${opp.city === 'New York' || opp.city === 'Los Angeles' ? `the ${opp.name}` : opp.city}`;
+    const res = l.us > l.them ? `win over the ${opp.name}` : l.us < l.them ? `loss ${where}` : `tie with the ${opp.name}`;
+    if (f.streak && f.streak.n >= 3 && f.streak.kind !== 'T') return `The ${t.name} have ${f.streak.kind === 'W' ? 'won' : 'lost'} ${f.streak.n} straight, most recently a ${score} ${res}.`;
+    return l.us < l.them ? `The ${t.name} are looking to bounce back from a ${score} ${res}.` : `The ${t.name} are coming off a ${score} ${res}.`;
+  };
+  for (const side of ['away', 'home'] as const) { const x = formLine(side); if (x) out.push(x); }
+
+  // Key players ruled out.
+  const outs = g.injuries.filter((i) => i.status === 'Out' && /^(QB|RB|WR|TE)$/.test(i.pos)).slice(0, 2);
+  if (outs.length) out.push(`${outs.map((i) => `${team(i.team).name} ${i.pos} ${i.name}`).join(' and ')} ${outs.length > 1 ? 'are' : 'is'} out.`);
+
   const o = g.odds;
   if (o?.spread != null && o.spread !== 0) {
     const fav = o.spread < 0 ? h : a;
-    t += ` ${fav.name} are ${Math.abs(o.spread)}-point favorites${o.total != null ? `, with ${o.total} total points expected` : ''}.`;
-  } else if (o?.total != null) t += ` ${o.total} total points expected.`;
-  return t;
+    out.push(`The ${fav.name} are ${Math.abs(o.spread)}-point favorites${o.total != null ? `, with ${o.total} total points expected` : ''}.`);
+  } else if (o?.total != null) out.push(`${o.total} total points expected.`);
+  return out.join(' ');
 }
 
 function Pregame({ g, standings, stale, onLineups }: { g: GameDetail; standings: Standing[] | null; stale: boolean; onLineups: () => void }) {
   const now = useNow(1_000);
   const venue = [g.venue?.name, [g.venue?.city, g.venue?.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
-  const day = new Date(g.kickoff).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
+  const day = new Date(g.kickoff).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: TZ });
   const hasLineups = g.lineups.away.length > 0 || g.lineups.home.length > 0;
   return (
     <>
@@ -365,12 +394,12 @@ function Pregame({ g, standings, stale, onLineups }: { g: GameDetail; standings:
         <PadCard title="Kickoff">
           <Countdown3 iso={g.kickoff} now={now} />
           <div className="kv"><span>Date</span><b>{day}, {kickoffTime(g.kickoff)}</b></div>
-          {venue && <div className="kv"><span>Venue</span><b>{venue}{g.weather ? (g.weather.dome ? ' · indoors' : ' · outdoors') : ''}</b></div>}
+          {venue && <div className="kv"><span>Venue</span><b>{venue}</b></div>}
           <WatchOn tv={g.tv} big />
         </PadCard>
       )}
 
-      <PadCard title="Expected starters" right={hasLineups ? <button className="link" style={{ background: 'none', border: 0, padding: 0 }} onClick={onLineups}>Full lineups</button> : undefined}>
+      <PadCard title="Expected starters" right={hasLineups ? <button className="link" style={{ background: 'none', border: 0, padding: 0 }} onClick={onLineups}>Full roster</button> : undefined}>
         {hasLineups ? (['away', 'home'] as const).map((side) => (
           <div key={side}>
             <div className="lu-team"><Badge abbr={g[side].abbr} size={24} />{teamName(g[side].abbr)}</div>
@@ -411,19 +440,38 @@ function RecentCard({ g, standings }: { g: GameDetail; standings: Standing[] | n
 }
 
 function Lineups({ g }: { g: GameDetail }) {
+  const units = [['offense', 'Offense'], ['defense', 'Defense'], ['special', 'Special teams']] as const;
   return (
     <>
-      <section className="callout-m"><small>Lineups</small><p>Expected starters from each team's depth chart. Final lineups post about 90 minutes before kickoff.</p></section>
-      {(['away', 'home'] as const).map((side) => (
-        <PadCard key={side} title={`${team(g[side].abbr).city} ${team(g[side].abbr).name}`}>
-          {g.lineups[side].length ? g.lineups[side].map((p, i) => (
-            <div className="lu-row" key={`${p.pos}-${i}`}>
-              <span className="p">{p.pos}</span><span>{p.name}<span className="sub" style={{ display: 'block', fontSize: 13 }}>{posWords(p.pos)}</span></span>
-              {p.status ? <span className={`status-pill ${injuryClass(p.status)}`}>{injuryWords(p.status)}</span> : <span />}
-            </div>
-          )) : <span className="sub">Not available yet. Lineups usually appear a few days before kickoff.</span>}
-        </PadCard>
-      ))}
+      <section className="callout-m"><small>Roster</small><p>Each team's depth chart: starter first, then the backups. Final starters post about 90 minutes before kickoff.</p></section>
+      {(['away', 'home'] as const).map((side) => {
+        const dc = g.depth?.[side];
+        const has = !!dc && (dc.offense.length + dc.defense.length + dc.special.length) > 0;
+        return (
+          <PadCard key={side} title={`${team(g[side].abbr).city} ${team(g[side].abbr).name}`} right={has ? <span className="dc-tag">Depth chart</span> : undefined}>
+            {has ? units.map(([k, label]) => dc![k].length > 0 && (
+              <div key={k} className="dc-unit">
+                <span className="dc-h">{label}</span>
+                {dc![k].map((p) => (
+                  <div className="dc-row" key={p.pos}>
+                    <span className="p">{p.pos}</span>
+                    <span className="dc-names">
+                      <b>{p.players[0]?.name}</b>
+                      {p.players.slice(1).map((x) => <span key={x.name} className="bk">{x.name}</span>)}
+                    </span>
+                    {p.players[0]?.status ? <span className={`dc-st ${injuryClass(p.players[0].status)}`}>{injuryWords(p.players[0].status)}</span> : <span />}
+                  </div>
+                ))}
+              </div>
+            )) : g.lineups[side].length ? g.lineups[side].map((p, i) => (
+              <div className="lu-row" key={`${p.pos}-${i}`}>
+                <span className="p">{p.pos}</span><span>{p.name}<span className="sub" style={{ display: 'block', fontSize: 13 }}>{posWords(p.pos)}</span></span>
+                {p.status ? <span className={`status-pill ${injuryClass(p.status)}`}>{injuryWords(p.status)}</span> : <span />}
+              </div>
+            )) : <span className="sub">Not available yet. Depth charts usually appear a few days before kickoff.</span>}
+          </PadCard>
+        );
+      })}
     </>
   );
 }

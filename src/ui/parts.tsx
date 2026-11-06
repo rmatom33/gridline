@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import type { Game, Injury, InjuryStatus, Standing, TeamStatRow, WinProbPoint } from '../shared/types';
+import type { Game, Injury, InjuryStatus, Standing, TeamStatRow, Sky, Venue, Weather, WinProbPoint } from '../shared/types';
 import { team } from '../shared/teams';
 import { back, href } from '../data/router';
 import { IS_SAMPLE } from '../data/source';
@@ -128,8 +128,8 @@ export function TopBar({ fallback, backLabel = 'Back', right }: { fallback?: str
   );
 }
 
-/** "Watch on Prime Video": the network always in full, with emphasis. */
-export function WatchOn({ tv, label = 'Watch on', dark = false, big = false, style }: { tv?: string | null; label?: string; dark?: boolean; big?: boolean; style?: CSSProperties }) {
+/** "TV Channel: Prime Video": the network always in full, with emphasis. */
+export function WatchOn({ tv, label = 'TV Channel:', dark = false, big = false, style }: { tv?: string | null; label?: string; dark?: boolean; big?: boolean; style?: CSSProperties }) {
   const name = networkName(tv);
   if (!name) return null;
   return (
@@ -471,4 +471,60 @@ export function TeamLine({ abbr, score, size = 36, trail, poss, nameSize = 16, s
       {score != null && <span className={`score ${trail ? 'trail' : ''}`} style={{ fontSize: scoreSize }}>{score}</span>}
     </div>
   );
+}
+
+// ---------- Venue and game-time weather ----------
+const isAbroad = (v?: Venue) => !!v?.country && !/^(us|usa|united states)$/i.test(v.country.trim());
+
+/** "MetLife Stadium · East Rutherford, NJ", or "Santiago Bernabéu · Madrid, Spain" outside the US. */
+export function venuePlace(v?: Venue): string | null {
+  if (!v) return null;
+  const where = isAbroad(v) ? [v.city, v.country] : [v.city, v.state];
+  return where.filter(Boolean).join(', ') || null;
+}
+
+export function VenueLine({ v }: { v?: Venue }) {
+  const place = venuePlace(v);
+  if (!v?.name && !place) return null;
+  return (
+    <div className="venue-l">
+      <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>
+      <span>{v?.name && <b>{v.name}</b>}{v?.name && place ? ' · ' : ''}{place && (isAbroad(v) ? <b className="abroad">{place}</b> : place)}</span>
+    </div>
+  );
+}
+
+const SUN = '#F2A900', GREY = '#8A8F9C', BLUE = '#3B82F6';
+const SKY: Record<Sky | 'dome', ReactNode> = {
+  sun: <g stroke={SUN}><circle cx="12" cy="12" r="4.2" /><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6" /></g>,
+  partly: <><g stroke={SUN}><path d="M8 4.5v1.3M3.8 8.5h1.3M5 5.4l.9.9M11.2 5.4l-.9.9" /><circle cx="8" cy="9" r="2.6" /></g><path stroke={GREY} fill="var(--panel)" d="M7.5 19h9.5a3.5 3.5 0 0 0 0-7 5 5 0 0 0-9.6 1.2A3 3 0 0 0 7.5 19z" /></>,
+  cloud: <path stroke={GREY} d="M7 18.5h10a4 4 0 0 0 .3-8 5.5 5.5 0 0 0-10.6 1.6A3.3 3.3 0 0 0 7 18.5z" />,
+  fog: <path stroke={GREY} d="M4 9h16M3 13h18M5 17h14" />,
+  rain: <><path stroke={GREY} d="M7 14.5h10a3.6 3.6 0 0 0 .3-7.2 5 5 0 0 0-9.7 1.4A2.9 2.9 0 0 0 7 14.5z" /><path stroke={BLUE} d="M8.5 17.5l-1 2.5M12.5 17.5l-1 2.5M16.5 17.5l-1 2.5" /></>,
+  snow: <><path stroke={GREY} d="M7 14.5h10a3.6 3.6 0 0 0 .3-7.2 5 5 0 0 0-9.7 1.4A2.9 2.9 0 0 0 7 14.5z" /><path stroke={BLUE} d="M8 18.5h.01M12 18.5h.01M16 18.5h.01M10 21h.01M14 21h.01" strokeWidth="2.8" /></>,
+  storm: <><path stroke={GREY} d="M7 14.5h10a3.6 3.6 0 0 0 .3-7.2 5 5 0 0 0-9.7 1.4A2.9 2.9 0 0 0 7 14.5z" /><path stroke={SUN} d="M12.5 15.5l-2 3.5h3l-2 3.5" /></>,
+  dome: <path stroke={GREY} d="M3 18h18M5 18a7 7 0 0 1 14 0M12 11v7M8.2 12.5l1.6 5.5M15.8 12.5l-1.6 5.5" />
+};
+
+/** The sky condition to draw, from the forecast code or, failing that, the numbers. */
+export function skyOf(w?: Weather | null): Sky | 'dome' | null {
+  if (!w) return null;
+  if (w.dome) return 'dome';
+  if (w.sky) return w.sky;
+  if ((w.precipPct ?? 0) >= 50) return (w.tempF ?? 50) <= 33 ? 'snow' : 'rain';
+  return w.tempF != null ? 'partly' : null;
+}
+
+export function WxIcon({ sky, size = 18 }: { sky: Sky | 'dome'; size?: number }) {
+  return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}>{SKY[sky]}</svg>;
+}
+
+const SKY_WORD: Record<Sky, string> = { sun: 'Clear', partly: 'Partly cloudy', cloud: 'Cloudy', fog: 'Fog', rain: 'Rain', snow: 'Snow', storm: 'Storms' };
+
+/** Icon + "48° · Cloudy": the weather expected at kickoff (nothing for indoor stadiums). */
+export function WeatherChip({ w }: { w?: Weather | null }) {
+  const sky = skyOf(w);
+  if (!w || !sky || sky === 'dome') return null;
+  const text = [w.tempF != null ? `${Math.round(w.tempF)}°` : null, SKY_WORD[sky]].filter(Boolean).join(' · ');
+  return <span className="wx-chip" aria-label={`Weather at kickoff: ${text}`}><WxIcon sky={sky} /><span>{text}</span></span>;
 }
