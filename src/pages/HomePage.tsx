@@ -164,13 +164,16 @@ function NextMatchup({ g, standings }: { g: Game; standings: Standing[] | null }
   const place = venuePlace(g.venue);
   const sky = skyOf(g.weather);
   const w = g.weather;
-  const cells: [string, ReactNode, ReactNode?][] = [
+  const all: [string, ReactNode, ReactNode?][] = [
     ['LOCATION', g.venue?.name ?? place, g.venue?.name ? place : null],
     ['FAVORITE', favorite],
     ['OVER/UNDER', g.odds?.total != null ? `${g.odds.total} Points` : null],
     ['WEATHER', sky && sky !== 'dome' && w?.tempF != null ? <><WxIcon sky={sky} /> {Math.round(w.tempF)}°</> : null,
       sky && sky !== 'dome' ? weatherLine({ ...g, weather: { ...w!, tempF: null } }) : null]
   ];
+  // Indoor games have no weather: drop that box and let Location use the full width, so long stadium names fit.
+  const cells = all.filter(([k, v]) => k !== 'WEATHER' || v != null);
+  const wideLoc = cells.length % 2 === 1;
   return (
     <section className="card nextm" aria-label={`Next matchup: ${teamName(g.away.abbr)} at ${teamName(g.home.abbr)}`}>
       <span className="kk">{when}</span>
@@ -179,7 +182,7 @@ function NextMatchup({ g, standings }: { g: Game; standings: Standing[] | null }
         <span className="at">AT</span>
         <span><Badge abbr={g.home.abbr} size={48} /><b>{teamName(g.home.abbr)}</b><small>{rec(g.home.abbr, g.home.record)}</small></span>
       </a>
-      <div className="nm-grid">{cells.map(([k, v, sub]) => <div key={k}><span>{k}</span><b>{v ?? '–'}</b>{sub && <small>{sub}</small>}</div>)}</div>
+      <div className="nm-grid">{cells.map(([k, v, sub]) => <div key={k} className={k === 'LOCATION' ? `loc${wideLoc ? ' wide' : ''}` : undefined}><span>{k}</span><b>{v ?? '–'}</b>{sub && <small>{sub}</small>}</div>)}</div>
       <WatchOn tv={g.tv} big />
       <a className="btn primary" href={href.game(g.id)}>Game preview</a>
     </section>

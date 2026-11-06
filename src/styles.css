@@ -922,3 +922,10 @@ body { background: var(--bg); overscroll-behavior-y: none; }
 .dc-row { padding: 8px 16px; }
 .dc-unit .dc-h + .dc-row { border-top: 0; }
 .dc-st { font-size: 12px; font-weight: 800; color: #C2272D; white-space: nowrap; background: none !important; }
+/* Next matchup: long stadium names wrap (max 2 lines) instead of being cut off */
+.nm-grid .loc b { white-space: normal; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; line-height: 1.25; }
+.nm-grid .loc.wide { grid-column: 1 / -1; }
+/* Game cards: let long venue lines wrap instead of trailing off */
+.venue-l { white-space: normal; align-items: flex-start; }
+.venue-l svg { margin-top: 2px; }
+.venue-l > span { overflow: visible; text-overflow: clip; }
