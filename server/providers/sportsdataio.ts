@@ -74,17 +74,18 @@ export function createSportsDataIOSource(opts: SdioOptions): DataSource {
    */
   async function injuryRows(apiSeason: string, week: number, teams: string[]): Promise<J[]> {
     // Player objects carry the roster Status ("Active") and a separate InjuryStatus; injury rows only have Status.
-    const st = (r: J) => (r.InjuryStatus !== undefined ? r.InjuryStatus : r.Status);
+    // InjuryStatus wins when it has a value; otherwise use Status unless it's just a roster state like "Active".
+    const st = (r: J) => r.InjuryStatus || (r.Status && !/^(active|inactive|practice squad|healthy)$/i.test(String(r.Status)) ? r.Status : null);
     const norm = (rows: J[]) => rows
-      .filter((r) => r && st(r) && !/^(active|healthy|scrambled)$/i.test(String(st(r))))
+      .filter((r) => r && st(r) && !/^(active|healthy)$/i.test(String(st(r))))
       .map((r) => ({ Name: r.Name ?? [r.FirstName, r.LastName].filter(Boolean).join(' '), Team: r.Team, Position: r.Position, BodyPart: r.InjuryBodyPart ?? r.BodyPart, Status: st(r) }));
     // "Player Details - by Injured" lives under the projections product: /v3/nfl/projections/json/InjuredPlayers.
     const injured = await get<J[]>('/projections/json/InjuredPlayers', 10 * 60_000)
       .catch(() => get<J[]>('/scores/json/InjuredPlayers', 10 * 60_000))
       .catch(() => null);
-    if (Array.isArray(injured) && injured.length) return norm(injured);
+    if (Array.isArray(injured) && norm(injured).length) return norm(injured);
     const weekly = await get<J[]>(`/scores/json/Injuries/${apiSeason}/${week}`, 30 * 60_000).catch(() => null);
-    if (Array.isArray(weekly) && weekly.length) return norm(weekly);
+    if (Array.isArray(weekly) && norm(weekly).length) return norm(weekly);
     const perTeam = await Promise.all(teams.map((t) => get<J[]>(`/scores/json/Players/${t}`, 30 * 60_000).catch(() => [] as J[])));
     return norm(perTeam.flat());
   }

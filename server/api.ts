@@ -167,6 +167,14 @@ async function checkFeeds() {
   const dc = await hit('/scores/json/DepthCharts');
   const first = Array.isArray(dc.json) ? dc.json[0] : null;
   const depthChartShape = first ? { teams: dc.json.length, topLevelFields: Object.keys(first), offenseFields: Object.keys(first.Offense?.[0] ?? {}), samplePositions: [...new Set((first.Offense ?? []).map((p: any) => p.Position))].slice(0, 12) } : null;
+  // Injury feed shape: counts and status values only (no player names), to see why the report could be empty.
+  const shape = (rows: any) => {
+    if (!Array.isArray(rows)) return null;
+    const vals = (k: string) => [...new Set(rows.map((r: any) => r?.[k]).filter((v: any) => v != null).map(String))].slice(0, 12);
+    return { rows: rows.length, fields: Object.keys(rows[0] ?? {}).filter((k) => /injur|status|team|position|name/i.test(k)), injuryStatusValues: vals('InjuryStatus'), statusValues: vals('Status'), withInjuryStatus: rows.filter((r: any) => r?.InjuryStatus).length };
+  };
+  const [ip, pt] = await Promise.all([hit('/projections/json/InjuredPlayers'), hit('/scores/json/Players/KC')]);
+  const injuryShape = { injuredPlayers: shape(ip.json), playersKC: shape(pt.json) };
   const body = {
     ok: tf.status === 200 && scores.status === 200,
     season, week,
@@ -174,6 +182,7 @@ async function checkFeeds() {
     oddsInScores: games.some((g: any) => g.PointSpread != null),
     feeds,
     depthChartShape,
+    injuryShape,
     meaning: '200 = working. 401/403 = not in your plan or wrong key. 404 = endpoint name differs on your plan. 0 = could not connect.',
     checkedAt: new Date().toISOString()
   };
