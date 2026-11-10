@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 
 // Hash routing works on any static host with no server rewrites. Routes are
 // plain names so links can be shared anywhere:
-//   #home  #games  #game-<id>  #plays-<id>  #schedule  #standings[-afc|-nfc]  #team-KC  #search
+//   #home  #games  #games-week-10  #game-<id>  #plays-<id>  #schedule  #standings[-afc|-nfc]  #team-KC  #search
 export type Route =
   | { name: 'home' }
-  | { name: 'games' }
+  | { name: 'games'; week?: number }
   | { name: 'game'; id: string }
   | { name: 'plays'; id: string }
   | { name: 'schedule' }
@@ -23,6 +23,8 @@ export function parse(hash: string): Route {
   if (m) return { name: 'team', abbr: m[1].toUpperCase() };
   m = path.match(/^standings(?:[-/](afc|nfc))?/i);
   if (m) return { name: 'standings', conf: m[1] ? (m[1].toUpperCase() as 'AFC' | 'NFC') : undefined };
+  m = path.match(/^games[-/](?:week[-/])?(\d{1,2})$/);
+  if (m) return { name: 'games', week: Number(m[1]) };
   if (path.startsWith('games') || path.startsWith('scores')) return { name: 'games' };
   if (path.startsWith('schedule')) return { name: 'schedule' };
   if (path.startsWith('search')) return { name: 'search' };
@@ -45,6 +47,7 @@ export function useRoute(): Route {
 export const href = {
   home: '#home',
   games: '#games',
+  gamesWeek: (week: number) => `#games-week-${week}`,
   game: (id: string) => `#game-${id}`,
   plays: (id: string) => `#plays-${id}`,
   schedule: '#schedule',

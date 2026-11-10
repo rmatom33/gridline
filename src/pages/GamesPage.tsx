@@ -5,18 +5,17 @@ import { cached, useOnline, usePoll } from '../data/usePoll';
 import { etDateKey, TZ, tzLong } from '../shared/format';
 import { ErrorCard, Footer, Icon, Nav, OfflineBanner, Skeleton, TopBar } from '../ui/parts';
 import { GameCard } from '../ui/GameRow';
-import { TEAMS } from '../shared/teams';
 import { pollEvery } from './HomePage';
 
 const dayTitle = (iso: string) => new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: TZ });
 
 /** Games: pick any week; games grouped by day with kickoff, TV, odds and weather. */
-export function GamesPage() {
+export function GamesPage({ initialWeek }: { initialWeek?: number } = {}) {
   const online = useOnline();
   const sbq = usePoll(() => data.scoreboard(), pollEvery, []);
   const st = usePoll(() => cached('standings', () => data.standings()), 0, []);
   const current = sbq.data?.week;
-  const [picked, setPicked] = useState<number | null>(null);
+  const [picked, setPicked] = useState<number | null>(initialWeek ?? null);
   const week = picked ?? current;
   const other = week != null && week !== current;
   const scq = usePoll(() => (other && week ? cached(`schedule-${week}`, () => data.schedule(week), 5 * 60_000) : Promise.resolve(null)), 0, [other ? week : 0]);
@@ -31,14 +30,11 @@ export function GamesPage() {
     const k = etDateKey(g.kickoff);
     byDay.set(k, [...(byDay.get(k) ?? []), g]);
   }
-  const playing = new Set((games ?? []).flatMap((g) => [g.away.abbr, g.home.abbr]));
-  const byes = games?.length ? Object.keys(TEAMS).filter((t) => !playing.has(t)).map((t) => TEAMS[t].name) : [];
 
   // Three whole weeks always fit: the chosen week in the middle where possible.
   const mid = week ? Math.min(Math.max(week, 2), lastWeek - 1) : 2;
   const shown = [mid - 1, mid, mid + 1];
   const go = (n: number) => setPicked(Math.min(lastWeek, Math.max(1, n)));
-  const updated = other ? scq.updatedAt : sbq.updatedAt;
 
   return (
     <div className="app">
@@ -73,8 +69,6 @@ export function GamesPage() {
               {list.map((g) => <GameCard key={g.id} g={g} standings={st.data ?? undefined} />)}
             </section>
           ))}
-          {byes.length > 0 && byes.length < 32 && <p className="byes">On bye this week: {byes.join(', ')}</p>}
-          {updated && <p className="updated">Updated {new Date(updated).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}</p>}
           <Footer />
         </main>
       )}

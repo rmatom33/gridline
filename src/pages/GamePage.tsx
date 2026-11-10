@@ -63,7 +63,6 @@ export function GamePage({ id }: { id: string }) {
           {g.status === 'halftime' && tab === 'center' && <Halftime g={g} stale={stale} />}
           {g.status === 'final' && tab === 'center' && <Final g={g} />}
           {!pre && tab === 'box' && <BoxScore g={g} standings={st.data} />}
-          {q.updatedAt && <p className="updated">Updated {new Date(q.updatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}</p>}
           <Footer odds={g.status !== 'final'} />
         </main>
       )}

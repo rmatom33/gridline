@@ -2,7 +2,7 @@ import type { Game, Scoreboard, Standing } from '../shared/types';
 import { data } from '../data/source';
 import { cached, useNow, useOnline, usePoll } from '../data/usePoll';
 import { href } from '../data/router';
-import { team, TEAMS } from '../shared/teams';
+import { team } from '../shared/teams';
 import { useState, type ReactNode } from 'react';
 import { clockTime, countdownText, etDateKey, tzAbbr, TZ } from '../shared/format';
 import { Badge, Card, ErrorCard, Footer, LinkButton, Nav, OfflineBanner, Skeleton, situationText, teamName, TopBar, WatchOn, WinNums, WxIcon, skyOf, venuePlace } from '../ui/parts';
@@ -51,12 +51,13 @@ export function HomePage() {
   const spot = pickSpotlight(games);
   const upcoming = games.filter((g) => g.status === 'scheduled' || g.status === 'postponed').sort((a, b) => a.kickoff.localeCompare(b.kickoff));
   const upNext = upcoming[0];
+  const show = (f: Filter) => filter === 'all' || filter === f;
+  // The next game gets the big preview card when nothing is live; leave it out of the list below so it isn't shown twice.
+  const featured = show('later') && !live.length && upNext && upNext.status === 'scheduled' ? upNext : undefined;
+  const laterList = featured ? upcoming.filter((g) => g.id !== featured.id) : upcoming;
   const finals = games.filter((g) => g.status === 'final').sort((a, b) => b.kickoff.localeCompare(a.kickoff));
   const today = etDateKey(now);
   const gameDay = live.length > 0 || games.some((g) => etDateKey(g.kickoff) === today);
-  const playing = new Set(games.flatMap((g) => [g.away.abbr, g.home.abbr]));
-  const byes = games.length ? Object.keys(TEAMS).filter((t) => !playing.has(t)).map((t) => TEAMS[t].name) : [];
-  const show = (f: Filter) => filter === 'all' || filter === f;
   const st2 = st.data ?? undefined;
 
   return (
@@ -99,17 +100,17 @@ export function HomePage() {
               actions={[upcoming.length ? { label: 'See upcoming games', go: () => setFilter('later') } : null, finals.length ? { label: 'See final scores', go: () => setFilter('done') } : null]} />
           )}
 
-          {show('later') && !live.length && upNext && upNext.status === 'scheduled' && <NextMatchup g={upNext} standings={st.data} />}
+          {featured && <NextMatchup g={featured} standings={st.data} />}
 
-          {show('later') && upcoming.length > 0 && (
+          {show('later') && laterList.length > 0 && (
             <section className="glist" aria-label={gameDay ? 'Later' : 'Coming up'}>
               <div className="sect-h"><h2>{gameDay ? 'Later' : 'Coming up'}</h2></div>
-              <ByDay games={upcoming} standings={st2} />
+              <ByDay games={laterList} standings={st2} />
             </section>
           )}
           {filter === 'later' && !upcoming.length && (
             <EmptyState kind="later" title="No more kickoffs this week" text="Next week's games are on the Games tab."
-              actions={[{ label: 'See next week', href: href.games }, finals.length ? { label: 'See final scores', go: () => setFilter('done') } : null]} />
+              actions={[{ label: 'See next week', href: sb ? href.gamesWeek(sb.week + 1) : href.games }, finals.length ? { label: 'See final scores', go: () => setFilter('done') } : null]} />
           )}
 
           {show('done') && finals.length > 0 && (
@@ -130,8 +131,6 @@ export function HomePage() {
             </Card>
           )}
 
-          {byes.length > 0 && <p className="byes">On bye this week: {byes.join(', ')}</p>}
-          {q.updatedAt && <p className="updated">Updated {new Date(q.updatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}</p>}
           <Footer />
         </main>
       )}

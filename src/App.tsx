@@ -10,7 +10,7 @@ import { SearchPage } from './pages/SearchPage';
 export function App() {
   const r = useRoute();
   switch (r.name) {
-    case 'games': return <GamesPage />;
+    case 'games': return <GamesPage key={r.week ?? 'now'} initialWeek={r.week} />;
     case 'game': return <GamePage key={r.id} id={r.id} />;
     case 'plays': return <PlaysPage key={r.id} id={r.id} />;
     case 'schedule': return <GamesPage />;
