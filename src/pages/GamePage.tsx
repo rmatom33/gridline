@@ -393,7 +393,7 @@ function Pregame({ g, standings, stale, onLineups }: { g: GameDetail; standings:
       {g.status !== 'postponed' && (
         <PadCard title="Kickoff">
           <Countdown3 iso={g.kickoff} now={now} />
-          <div className="kv"><span>Date</span><b>{day}, {kickoffTime(g.kickoff)}</b></div>
+          <div className="kv"><span>Date</span><b><span>{day},</span> <span className="nw">{kickoffTime(g.kickoff)}</span></b></div>
           {venue && <div className="kv"><span>Venue</span><b>{venue}</b></div>}
           <WatchOn tv={g.tv} big />
         </PadCard>

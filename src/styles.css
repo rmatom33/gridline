@@ -929,3 +929,29 @@ body { background: var(--bg); overscroll-behavior-y: none; }
 .venue-l { white-space: normal; align-items: flex-start; }
 .venue-l svg { margin-top: 2px; }
 .venue-l > span { overflow: visible; text-overflow: clip; }
+
+/* Home: day headings inside Later / Final scores; standings rows without the green playoff bar */
+.dgroup { display: flex; flex-direction: column; gap: 14px; }
+.stt-row.seeded::before { display: none; }
+
+/* Standings: W · L · T · PCT columns */
+.stt-head, .stt-row { grid-template-columns: minmax(0, 1fr) 22px 22px 22px 40px; gap: 4px; }
+.stt-head span:not(:first-child):not(:last-child), .stt-row > span:not(:first-child):not(:last-child) { text-align: center; }
+/* Records with ties ("4-2-1", "10-6-1") never wrap */
+.mc-row .rc { width: auto; min-width: 44px; white-space: nowrap; }
+.game-row .teams .rec, .srow .tl .rc, .nextm .vs small, .tp-rec, .rec, .rc { white-space: nowrap; }
+/* Formatting pass: short labels, times and records never break mid-value */
+.stt-row .tm b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+@media (max-width: 400px) { .stt-row .tm .city { display: none; } }
+.kv b .nw { white-space: nowrap; }
+.gh-mid .cap { white-space: nowrap; }
+.hd em { white-space: nowrap; flex: none; }
+.wx3 b, .wx3 span { white-space: nowrap; }
+.play .clk { white-space: nowrap; }
+.card-title { white-space: nowrap; }
+.who .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.field-legend span { white-space: nowrap; }
+.status-pill, .dc-st, .lv-pill, .mc-head .when, .mc-foot span, .watch b { white-space: nowrap; }
+.recent .hd b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent .hd .form-lg { flex: none; gap: 3px; }
+@media (max-width: 360px) { .recent .hd { gap: 6px; } .recent .hd .form-lg span { width: 20px; height: 20px; font-size: 11px; } }

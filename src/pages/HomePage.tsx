@@ -22,6 +22,23 @@ export function pickSpotlight(games: Game[]): Game | undefined {
 
 type Filter = 'all' | 'live' | 'later' | 'done';
 
+const dayTitle = (iso: string) => new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: TZ });
+
+/** Game cards under a "SUNDAY, NOVEMBER 8" heading per day, as on the Games tab. Keeps the order it's given. */
+function ByDay({ games, standings }: { games: Game[]; standings?: Standing[] }) {
+  const groups: Game[][] = [];
+  for (const g of games) {
+    const last = groups[groups.length - 1];
+    if (last && etDateKey(last[0].kickoff) === etDateKey(g.kickoff)) last.push(g); else groups.push([g]);
+  }
+  return <>{groups.map((list) => (
+    <div key={list[0].id} className="dgroup">
+      <div className="dayh"><b>{dayTitle(list[0].kickoff)}</b><i /></div>
+      {list.map((g) => <GameCard key={g.id} g={g} standings={standings} />)}
+    </div>
+  ))}</>;
+}
+
 export function HomePage() {
   const online = useOnline();
   const now = useNow(30_000);
@@ -66,6 +83,7 @@ export function HomePage() {
 
       {sb && (
         <main className="page">
+          {show('live') && spot && <div className="dayh"><b>{dayTitle(spot.kickoff)}</b><i /></div>}
           {show('live') && spot && <Spotlight g={spot} hideNumbers={q.stale || !online} />}
 
           {show('live') && live.length > (spot ? 1 : 0) && (
@@ -86,7 +104,7 @@ export function HomePage() {
           {show('later') && upcoming.length > 0 && (
             <section className="glist" aria-label={gameDay ? 'Later' : 'Coming up'}>
               <div className="sect-h"><h2>{gameDay ? 'Later' : 'Coming up'}</h2></div>
-              {upcoming.map((g) => <GameCard key={g.id} g={g} standings={st2} />)}
+              <ByDay games={upcoming} standings={st2} />
             </section>
           )}
           {filter === 'later' && !upcoming.length && (
@@ -97,7 +115,7 @@ export function HomePage() {
           {show('done') && finals.length > 0 && (
             <section className="glist" aria-label="Final scores">
               <div className="sect-h"><h2>Final scores</h2></div>
-              {finals.map((g) => <GameCard key={g.id} g={g} standings={st2} />)}
+              <ByDay games={finals} standings={st2} />
             </section>
           )}
           {filter === 'done' && !finals.length && (

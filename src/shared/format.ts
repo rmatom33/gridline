@@ -158,7 +158,7 @@ const NETWORKS: Record<string, string> = {
   'CBS/P': 'CBS & Paramount+', 'CBS/PARAMOUNT+': 'CBS & Paramount+', 'PARAMOUNT+': 'Paramount+',
   'NBC/P': 'NBC & Peacock', 'NBC/PEACOCK': 'NBC & Peacock', PEACOCK: 'Peacock',
   NFLN: 'NFL Network', 'NFL NETWORK': 'NFL Network', NFLNET: 'NFL Network',
-  'ESPN/ABC': 'ESPN & ABC', 'ABC/ESPN': 'ABC & ESPN', ESPN2: 'ESPN2', 'ESPN+': 'ESPN+',
+  'ESPN/ABC': 'ESPN & ABC', 'ABC/ESPN': 'ABC & ESPN', 'ABC/E': 'ABC & ESPN', 'E/ABC': 'ESPN & ABC', 'ESPN/E+': 'ESPN & ESPN+', ESPN2: 'ESPN2', 'ESPN+': 'ESPN+',
   NETFLIX: 'Netflix', NFLX: 'Netflix', YOUTUBE: 'YouTube', YT: 'YouTube', 'NFL+': 'NFL+',
   FOX: 'FOX', CBS: 'CBS', NBC: 'NBC', ABC: 'ABC', ESPN: 'ESPN'
 };
@@ -168,6 +168,15 @@ export function networkName(tv?: string | null): string | null {
   const k = tv.trim().toUpperCase();
   if (NETWORKS[k]) return NETWORKS[k];
   // Simulcasts the table doesn't know yet, e.g. "FOX/FOXONE" -> "FOX & FOXONE".
-  if (/[/,]/.test(k)) return tv.split(/\s*[/,]\s*/).filter(Boolean).map((p) => NETWORKS[p.trim().toUpperCase()] ?? p.trim()).join(' & ');
+  // The feed abbreviates the second network: "E" = ESPN, "P" = the first network's streaming service.
+  if (/[/,]/.test(k)) {
+    const parts = tv.split(/\s*[/,]\s*/).filter(Boolean).map((p) => p.trim());
+    const SHORT: Record<string, string> = { E: 'ESPN', 'E+': 'ESPN+', N: 'NFL Network', A: 'Prime Video' };
+    return parts.map((p, i) => {
+      const u = p.toUpperCase();
+      if (u === 'P' && i > 0) return parts[0].toUpperCase() === 'CBS' ? 'Paramount+' : parts[0].toUpperCase() === 'NBC' ? 'Peacock' : p;
+      return NETWORKS[u] ?? SHORT[u] ?? p;
+    }).join(' & ');
+  }
   return tv.trim();
 }

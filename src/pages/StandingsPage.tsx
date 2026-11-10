@@ -3,7 +3,7 @@ import type { Standing } from '../shared/types';
 import { data } from '../data/source';
 import { cached, useOnline, usePoll } from '../data/usePoll';
 import { href } from '../data/router';
-import { TEAMS } from '../shared/teams';
+import { team, TEAMS } from '../shared/teams';
 import { record } from '../shared/format';
 import { winPct } from '../shared/teamdetail';
 import { Badge, ErrorCard, Footer, Nav, OfflineBanner, Skeleton, teamName, TopBar } from '../ui/parts';
@@ -56,7 +56,7 @@ function Table({ title, teams, rank, split }: { title: string; teams: Standing[]
   return (
     <section className="card" aria-label={title}>
       <div className="card-head"><span className="card-title">{title}</span></div>
-      <div className="stt-head" aria-hidden="true"><span /><span>W</span><span>L</span><span>PCT</span></div>
+      <div className="stt-head" aria-hidden="true"><span /><span>W</span><span>L</span><span>T</span><span>PCT</span></div>
       {teams.map((s, i) => {
         return (
           <div key={s.team}>
@@ -67,11 +67,12 @@ function Table({ title, teams, rank, split }: { title: string; teams: Standing[]
               <span className="tm">
                 <span className="rk">{rank(s.team)}</span>
                 <Badge abbr={s.team} size={26} />
-                <b>{teamName(s.team, true)}</b>
+                <b><span className="city">{team(s.team).city} </span>{team(s.team).name}</b>
                 {s.seed ? <span className="sd">{s.seed}</span> : null}
               </span>
               <span>{s.w}</span>
-              <span>{s.l}{s.t ? `-${s.t}` : ''}</span>
+              <span>{s.l}</span>
+              <span>{s.t ?? 0}</span>
               <span>{pctText(s)}</span>
             </a>
           </div>
