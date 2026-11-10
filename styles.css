@@ -955,3 +955,8 @@ body { background: var(--bg); overscroll-behavior-y: none; }
 .recent .hd b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .recent .hd .form-lg { flex: none; gap: 3px; }
 @media (max-width: 360px) { .recent .hd { gap: 6px; } .recent .hd .form-lg span { width: 20px; height: 20px; font-size: 11px; } }
+
+/* Plays header: game status as a quiet callout, not a button-like pill */
+.stcall { margin-top: 10px; display: inline-flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #B9B3CF; white-space: nowrap; pointer-events: none; }
+.stcall::before, .stcall::after { content: ''; width: 28px; height: 1px; background: rgba(255,255,255,.22); }
+.stcall .dot { width: 7px; height: 7px; border-radius: 50%; background: #F97316; margin-right: -4px; }

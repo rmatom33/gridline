@@ -38,7 +38,7 @@ export function PlaysPage({ id }: { id: string }) {
         <CenterBar fallback={href.game(id)} backLabel="Back to game">
           <span className="ttl">Every play</span>
           {g && <span style={{ marginTop: 8, fontSize: 18, fontWeight: 800, whiteSpace: 'nowrap' }}>{teamName(g.away.abbr)} {g.away.score ?? 0} · {teamName(g.home.abbr)} {g.home.score ?? 0}</span>}
-          {g && <span className="gpill" style={{ marginTop: 8, background: 'var(--navy2)', color: '#E4E0F2' }}>{(g.status === 'live' || g.status === 'halftime') && <span className="dot" style={{ background: '#F97316' }} />}{liveStatus(g)}</span>}
+          {g && <span className="stcall">{(g.status === 'live' || g.status === 'halftime') && <span className="dot" />}{g.status === 'final' ? 'Final score' : liveStatus(g)}</span>}
         </CenterBar>
         <div style={{ height: 16 }} />
         {g && (
